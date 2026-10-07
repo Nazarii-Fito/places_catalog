@@ -3,6 +3,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:places_catalog/features/auth/screens/forgot_password_screen.dart';
 import 'package:places_catalog/features/auth/screens/login_screen.dart';
 import 'package:places_catalog/features/auth/screens/register_screen.dart';
+import 'package:places_catalog/data/mock/mock_places.dart';
+import 'package:places_catalog/features/places/place_details_args.dart';
+import 'package:places_catalog/features/places/screens/add_place_screen.dart';
+import 'package:places_catalog/features/places/screens/location_picker_screen.dart';
+import 'package:places_catalog/features/places/screens/place_details_screen.dart';
 import 'package:places_catalog/features/profile/screens/change_password_screen.dart';
 import 'package:places_catalog/features/shell/main_shell.dart';
 
@@ -25,6 +30,15 @@ void main() {
     'Forgot Password': () => const ForgotPasswordScreen(),
     'Change Password': () => const ChangePasswordScreen(),
     'Main shell (Home)': () => const MainShell(),
+    'Place Details': () => PlaceDetailsScreen(
+      args: PlaceDetailsArgs(
+        place: mockPlaces.first,
+        onToggleFavorite: (_) {},
+        onDelete: (_) {},
+      ),
+    ),
+    'Add Place': () => const AddPlaceScreen(),
+    'Location Picker': () => const LocationPickerScreen(),
   };
 
   for (final MapEntry<String, Size> device in devices.entries) {
@@ -41,16 +55,18 @@ void main() {
         });
       }
 
-      testWidgets('Profile tab fits ${device.key} @ text x$scale', (
-        WidgetTester tester,
-      ) async {
-        useIPhone(tester, size: device.value, textScale: scale);
-        await tester.pumpWidget(testApp(const MainShell()));
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('Profile').last);
-        await tester.pumpAndSettle();
-        expect(tester.takeException(), isNull);
-      });
+      for (final String tab in ['Favorites', 'Profile']) {
+        testWidgets('$tab tab fits ${device.key} @ text x$scale', (
+          WidgetTester tester,
+        ) async {
+          useIPhone(tester, size: device.value, textScale: scale);
+          await tester.pumpWidget(testApp(const MainShell()));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text(tab).last);
+          await tester.pumpAndSettle();
+          expect(tester.takeException(), isNull);
+        });
+      }
     }
   }
 

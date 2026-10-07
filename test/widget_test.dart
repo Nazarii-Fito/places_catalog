@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:places_catalog/app/app.dart';
 import 'package:places_catalog/core/widgets/place_card.dart';
+import 'package:places_catalog/data/mock/mock_places.dart';
 import 'package:places_catalog/features/home/screens/home_screen.dart';
+import 'package:places_catalog/features/places/screens/place_details_screen.dart';
 import 'package:places_catalog/features/shell/main_shell.dart';
 
 import 'helpers/test_harness.dart';
@@ -58,9 +60,17 @@ void main() {
     WidgetTester tester,
   ) async {
     useIPhone(tester, size: const Size(390, 1400));
-    await tester.pumpWidget(testApp(const HomeScreen()));
+    await tester.pumpWidget(
+      testApp(
+        HomeScreen(
+          places: mockPlaces,
+          onToggleFavorite: (_) {},
+          onOpenPlace: (_) {},
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
-    expect(find.byType(PlaceCard), findsNWidgets(4));
+    expect(find.byType(PlaceCard), findsNWidgets(mockPlaces.length));
 
     await tester.tap(find.text('Restaurants'));
     await tester.pumpAndSettle();
@@ -75,5 +85,47 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(PlaceCard), findsNothing);
     expect(find.text('No places found'), findsOneWidget);
+  });
+
+  testWidgets('Heart on Home updates the Favorites tab (lifted state)', (
+    WidgetTester tester,
+  ) async {
+    useIPhone(tester, size: const Size(390, 1400));
+    await tester.pumpWidget(testApp(const MainShell()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Favorites').last);
+    await tester.pumpAndSettle();
+    expect(find.text('All (3)'), findsOneWidget);
+
+    await tester.tap(find.text('Home').last);
+    await tester.pumpAndSettle();
+    // Osteria Del Sole is the second card and not a favourite yet.
+    await tester.tap(find.bySemanticsLabel('Toggle favorite').at(1));
+    await tester.tap(find.text('Favorites').last);
+    await tester.pumpAndSettle();
+    expect(find.text('All (4)'), findsOneWidget);
+  });
+
+  testWidgets('Card opens details; Delete asks for confirmation', (
+    WidgetTester tester,
+  ) async {
+    useIPhone(tester, size: const Size(390, 1400));
+    await tester.pumpWidget(testApp(const MainShell()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Kurobuta Ramen'));
+    await tester.pumpAndSettle();
+    expect(find.byType(PlaceDetailsScreen), findsOneWidget);
+
+    await tester.scrollUntilVisible(find.text('Delete Place'), 200);
+    await tester.tap(find.text('Delete Place'));
+    await tester.pumpAndSettle();
+    expect(find.text('Delete Place?'), findsOneWidget);
+
+    await tester.tap(find.text('Delete'));
+    await tester.pumpAndSettle();
+    expect(find.byType(PlaceDetailsScreen), findsNothing);
+    expect(find.text('Kurobuta Ramen'), findsNothing);
   });
 }

@@ -32,3 +32,13 @@
 - **Register:** блок «or continue with» компактніший, ніж на Login (як у Figma: лінія на 24 pt нижче кнопки, соц-кнопки на 24.75 pt нижче лінії). Через уніфіковані лейбли (line-height 16 замість 13) форма нижча за Figma на ~7 pt (виміряно по пікселях).
 - **Legal-текст на Login/Register** на iPhone 17e опиняється нижче згину екрана, бо у фреймах Figma немає статус-бару (+47 pt). Контент скролиться, overflow немає (див. `test/layout_test.dart`).
 - **Методика звірки:** скриншот симулятора (iPhone 17e, @3x → 1x) обрізано на safe area 47 pt і поставлено поруч з рендером фрейму Figma (`docs/compare/`). Позиції елементів міряно по пікселях: Login, Forgot, Home, Profile і Change Password збігаються з Figma в межах ±0.5 pt.
+
+## Етап 2
+- **Стан каталогу піднято в `MainShell`** (lifting state up): Home і Favorites отримують `List<Place>` параметром і повідомляють про зміни колбеками. Тому Favorites завжди показує фактично обрані на Home заклади: Daily Grind, MOMA, Atelier. У Figma Favorites там Osteria, хоча на Home у неї порожнє сердечко, тож дизайн тут суперечить сам собі.
+- **Atelier Pastel Cafe** з фрейму Favorites додано в mock-дані з датою 02.11.2022, щоб не змінювати порядок карток Home («Sorted by Recent»).
+- **Favorites:** пошук і чипси уніфіковано за Home (40 pt, текст 13), тоді як у Figma Favorites 36 pt і 15. Картка Favorites — варіант `PlaceCard.favorites`, точно за Figma (відступ 12, мініатюра 88, одна зірка).
+- **Place Details:** у Figma дві кнопки «назад» (у шапці й на фото). Це надлишково з погляду HIG, але зверстано як у дизайні. Рейтинг береться з даних (5.0, як на Home), а не 4.9 з фрейму.
+- **Place Details отримує дані через `RouteSettings.arguments`** (`PlaceDetailsArgs`). Location Picker повертає адресу через `Navigator.pop(result)` і відкривається як `fullscreenDialog` (знизу, з «Cancel»).
+- **Location Picker:** нижня картка стоїть над home indicator (Safe Area), а в Figma — за 16 pt від краю фрейму. Кнопка Confirm уніфікована з `PrimaryButton` (радіус 12 замість 16).
+- **HIG:** зірки на Add Place (32 pt) і хрестики видалення фото й тегів менші за 44 pt — так у дизайні.
+- **Мапи** — статичні зображення з Figma (`map_soho.png`, `map_manhattan.jpg`) низької роздільності (512 px), тож на @3x вони трохи розмиті.
