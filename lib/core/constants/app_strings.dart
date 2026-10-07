@@ -5,7 +5,8 @@
 abstract final class AppStrings {
   // App
   static const String appName = 'PlacesCatalog';
-  static const String tagline = 'Your personal culinary & culture diary';
+  // Auth subtitles keep the line breaks from Figma (explicit '\n').
+  static const String tagline = 'Your personal culinary & culture\ndiary';
 
   // Shared auth
   static const String emailLabel = 'Email Address';
@@ -32,7 +33,7 @@ abstract final class AppStrings {
 
   // Register
   static const String registerSubtitle =
-      'Start your personal culinary & culture journal';
+      'Start your personal culinary & culture\njournal';
   static const String fullNameLabel = 'Full Name';
   static const String fullNameHint = 'Nazarii Fito';
   static const String registerLegalPrefix = 'By signing up, you agree to our ';
@@ -41,7 +42,7 @@ abstract final class AppStrings {
   // Forgot password
   static const String resetPasswordTitle = 'Reset Password';
   static const String resetPasswordSubtitle =
-      "Enter your email and we'll send you a link to reset your password.";
+      "Enter your email and we'll send you\na link to reset your password.";
   static const String resetEmailHelper =
       "We'll send a secure link to this address";
   static const String sendResetLink = 'Send Reset Link';
