@@ -1,3 +1,5 @@
+import '../data/mock/mock_places.dart';
+import '../features/places/place_details_args.dart';
 import 'routes/app_routes.dart';
 
 /// Compile-time start options used to take screenshots of every screen
@@ -17,4 +19,12 @@ abstract final class DevLaunchOptions {
 
   /// Index of the tab opened first in `MainShell` (0 — Home).
   static const int initialTab = int.fromEnvironment('INITIAL_TAB');
+
+  /// Used when Place Details is opened as the start screen (no caller to
+  /// pass arguments): shows the first mock place with inert callbacks.
+  static PlaceDetailsArgs get previewDetailsArgs => PlaceDetailsArgs(
+    place: mockPlaces.first,
+    onToggleFavorite: (_) {},
+    onDelete: (_) {},
+  );
 }
