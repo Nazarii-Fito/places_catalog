@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../app/dev_launch_options.dart';
 import '../../core/constants/app_assets.dart';
 import '../../core/constants/app_strings.dart';
 import '../../core/widgets/app_bottom_nav_bar.dart';
@@ -29,7 +30,7 @@ class _MainShellState extends State<MainShell> {
     AppNavItem(icon: AppAssets.iconTabProfile, label: AppStrings.tabProfile),
   ];
 
-  int _currentIndex = 0;
+  int _currentIndex = DevLaunchOptions.initialTab;
 
   void _selectTab(int index) {
     if (index == _currentIndex) return;
