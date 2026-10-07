@@ -18,11 +18,15 @@ class PrimaryButton extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.icon,
+    this.height = AppSizes.buttonHeight,
   });
 
   final String label;
   final VoidCallback? onPressed;
   final Widget? icon;
+
+  /// 52 pt by default; Add Place uses a 48 pt variant.
+  final double height;
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +41,7 @@ class PrimaryButton extends StatelessWidget {
         child: Opacity(
           opacity: enabled ? 1 : 0.4,
           child: Container(
-            height: AppSizes.buttonHeight,
+            height: height,
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: AppColors.primary,

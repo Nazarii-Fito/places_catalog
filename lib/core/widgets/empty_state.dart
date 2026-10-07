@@ -1,15 +1,17 @@
 import 'package:flutter/widgets.dart';
 
-import '../../../core/constants/app_assets.dart';
-import '../../../core/constants/app_strings.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_spacing.dart';
-import '../../../core/theme/app_text_styles.dart';
-import '../../../core/widgets/app_svg_icon.dart';
+import '../constants/app_assets.dart';
+import '../theme/app_colors.dart';
+import '../theme/app_spacing.dart';
+import '../theme/app_text_styles.dart';
+import 'app_svg_icon.dart';
 
-/// Shown when search + filter leave no places.
-class EmptyPlacesView extends StatelessWidget {
-  const EmptyPlacesView({super.key});
+/// Centered "nothing here" message: search icon, [title], [subtitle].
+class EmptyState extends StatelessWidget {
+  const EmptyState({super.key, required this.title, required this.subtitle});
+
+  final String title;
+  final String subtitle;
 
   @override
   Widget build(BuildContext context) {
@@ -33,10 +35,10 @@ class EmptyPlacesView extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.l),
-          const Text(AppStrings.emptyTitle, style: AppTextStyles.headline),
+          Text(title, style: AppTextStyles.headline),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            AppStrings.emptySubtitle,
+            subtitle,
             style: AppTextStyles.footnote.copyWith(
               color: AppColors.textSecondary,
             ),

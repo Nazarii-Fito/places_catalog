@@ -33,7 +33,9 @@ class NavBackButton extends StatelessWidget {
           ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+            // Without a label the chevron is centred in the 44 pt square.
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               mainAxisSize: MainAxisSize.min,
               children: [
                 const AppSvgIcon(AppAssets.iconChevronLeft),

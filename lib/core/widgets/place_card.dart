@@ -13,12 +13,13 @@ import 'app_svg_icon.dart';
 import 'pressable_opacity.dart';
 import 'rating_stars.dart';
 
-/// How the rating is presented inside a [PlaceCard].
+/// Visual variant of a [PlaceCard] — each matches one Figma frame.
 enum PlaceCardVariant {
-  /// Five stars + value, one-line title (Home).
+  /// Home: 84 pt thumbnail, five stars, one-line title, centred row.
   home,
 
-  /// One star + orange value, title may wrap to two lines (Favorites).
+  /// Favorites: 88 pt thumbnail, one star + orange value, title wraps to
+  /// two lines, content aligned to the top.
   favorites,
 }
 
@@ -43,34 +44,45 @@ class PlaceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool isHome = variant == PlaceCardVariant.home;
+    final double padding = isHome ? AppSpacing.ml : AppSpacing.m;
+    final double heartInset = isHome ? AppSpacing.s : AppSpacing.sm;
     return PressableOpacity(
       onTap: onTap,
       pressedOpacity: 0.8,
       child: Stack(
         children: [
           Container(
-            padding: const EdgeInsets.all(AppSpacing.ml),
+            padding: EdgeInsets.all(padding),
             decoration: const BoxDecoration(
               color: AppColors.surface,
               borderRadius: AppRadii.lgAll,
               boxShadow: AppShadows.subtle,
             ),
             child: Row(
+              crossAxisAlignment: isHome
+                  ? CrossAxisAlignment.center
+                  : CrossAxisAlignment.start,
               children: [
-                _Thumbnail(asset: place.coverImage),
+                _Thumbnail(
+                  asset: place.coverImage,
+                  size: isHome ? AppSizes.placeThumbnail : 88,
+                ),
                 const SizedBox(width: AppSpacing.ml),
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.only(right: AppSpacing.xxl),
-                    child: _Details(place: place, variant: variant),
+                    child: isHome
+                        ? _HomeDetails(place: place)
+                        : _FavoriteDetails(place: place),
                   ),
                 ),
               ],
             ),
           ),
           Positioned(
-            top: AppSpacing.s,
-            right: AppSpacing.s,
+            top: heartInset,
+            right: heartInset,
             child: _FavoriteButton(
               isFavorite: place.isFavorite,
               onTap: onFavoriteToggle,
@@ -83,9 +95,10 @@ class PlaceCard extends StatelessWidget {
 }
 
 class _Thumbnail extends StatelessWidget {
-  const _Thumbnail({required this.asset});
+  const _Thumbnail({required this.asset, required this.size});
 
   final String asset;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
@@ -93,58 +106,39 @@ class _Thumbnail extends StatelessWidget {
       borderRadius: AppRadii.mdAll,
       child: ColoredBox(
         color: AppColors.surfaceContainer,
-        child: Image.asset(
-          asset,
-          width: AppSizes.placeThumbnail,
-          height: AppSizes.placeThumbnail,
-          fit: BoxFit.cover,
-        ),
+        child: Image.asset(asset, width: size, height: size, fit: BoxFit.cover),
       ),
     );
   }
 }
 
-class _Details extends StatelessWidget {
-  const _Details({required this.place, required this.variant});
+class _HomeDetails extends StatelessWidget {
+  const _HomeDetails({required this.place});
 
   final Place place;
-  final PlaceCardVariant variant;
 
   @override
   Widget build(BuildContext context) {
-    final bool isHome = variant == PlaceCardVariant.home;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           place.name,
           style: AppTextStyles.cardTitle,
-          maxLines: isHome ? 1 : 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-        const SizedBox(height: AppSpacing.xxs),
-        Text(
-          place.subtitle,
-          style: AppTextStyles.footnote.copyWith(
-            color: AppColors.textSecondary,
-          ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
+        const SizedBox(height: AppSpacing.xxs),
+        _Subtitle(text: place.subtitle),
         const SizedBox(height: AppSpacing.sm),
         Row(
           children: [
-            if (isHome)
-              RatingStars(rating: place.rating)
-            else
-              const AppSvgIcon(AppAssets.iconStar),
+            RatingStars(rating: place.rating),
             Padding(
               padding: const EdgeInsets.only(left: AppSpacing.xs),
               child: Text(
                 place.rating.toStringAsFixed(1),
-                style: AppTextStyles.footnoteSemibold.copyWith(
-                  color: isHome ? AppColors.textPrimary : AppColors.cafeAccent,
-                ),
+                style: AppTextStyles.footnoteSemibold,
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
@@ -163,6 +157,80 @@ class _Details extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+}
+
+class _FavoriteDetails extends StatelessWidget {
+  const _FavoriteDetails({required this.place});
+
+  final Place place;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          place.name,
+          style: AppTextStyles.headline,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: AppSpacing.xxs),
+        _Subtitle(text: place.subtitle),
+        const SizedBox(height: AppSpacing.s),
+        Row(
+          spacing: AppSpacing.s,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              spacing: AppSpacing.xxs,
+              children: [
+                const AppSvgIcon(AppAssets.iconStar),
+                Text(
+                  place.rating.toStringAsFixed(1),
+                  style: AppTextStyles.captionSemibold.copyWith(
+                    color: AppColors.cafeAccent,
+                  ),
+                ),
+              ],
+            ),
+            Text(
+              '•',
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.outlineVariant,
+              ),
+            ),
+            Flexible(
+              child: Text(
+                AppStrings.visitedPrefix + formatShortDate(place.visitDate),
+                style: AppTextStyles.caption.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _Subtitle extends StatelessWidget {
+  const _Subtitle({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: AppTextStyles.footnote.copyWith(color: AppColors.textSecondary),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
     );
   }
 }

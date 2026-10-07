@@ -68,4 +68,41 @@ abstract final class AppShadows {
   static const List<BoxShadow> bar = [
     BoxShadow(color: AppColors.shadow4, offset: Offset(0, 1), blurRadius: 8),
   ];
+
+  /// Map marker: 0 10 15 −3 and 0 4 6 −4, black 10 %.
+  static const List<BoxShadow> marker = [
+    BoxShadow(
+      color: AppColors.shadow10,
+      offset: Offset(0, 10),
+      blurRadius: 15,
+      spreadRadius: -3,
+    ),
+    BoxShadow(
+      color: AppColors.shadow10,
+      offset: Offset(0, 4),
+      blurRadius: 6,
+      spreadRadius: -4,
+    ),
+  ];
+
+  /// Details sheet lifted over the hero photo: 0 −4 10 black 6 %.
+  static const List<BoxShadow> sheet = [
+    BoxShadow(color: AppColors.shadow6, offset: Offset(0, -4), blurRadius: 10),
+  ];
+
+  /// Floating card over the map: 0 20 25 −5 and 0 8 10 −6, black 10 %.
+  static const List<BoxShadow> floating = [
+    BoxShadow(
+      color: AppColors.shadow10,
+      offset: Offset(0, 20),
+      blurRadius: 25,
+      spreadRadius: -5,
+    ),
+    BoxShadow(
+      color: AppColors.shadow10,
+      offset: Offset(0, 8),
+      blurRadius: 10,
+      spreadRadius: -6,
+    ),
+  ];
 }

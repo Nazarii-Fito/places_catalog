@@ -1,3 +1,8 @@
+import '../../data/models/place_category.dart';
+
+/// Short alias so the label maps above read naturally.
+typedef PlaceCategoryKey = PlaceCategory;
+
 /// Every user-facing string of the app in one place (NFR7).
 ///
 /// When uk/en localisation is added, this class is replaced by generated
@@ -79,6 +84,97 @@ abstract final class AppStrings {
   // Favorites
   static const String favoritesHeader = 'Saved Favorites';
   static const String favoritesTitle = 'Favorites';
+  static const String edit = 'Edit';
+  static const String searchFavoritesHint = 'Search favorites...';
+  static const String noFavoritesTitle = 'No favorites yet';
+  static const String noFavoritesSubtitle =
+      'Tap the heart on a place to keep it here.';
+
+  /// Plural chip labels per category ("Cafes (2)").
+  static const Map<PlaceCategoryKey, String> categoryPlural = {
+    PlaceCategoryKey.cafe: 'Cafes',
+    PlaceCategoryKey.restaurant: 'Restaurants',
+    PlaceCategoryKey.bar: 'Bars',
+    PlaceCategoryKey.museum: 'Museums',
+    PlaceCategoryKey.fastFood: 'Fast Food',
+    PlaceCategoryKey.hotel: 'Hotels',
+    PlaceCategoryKey.bakery: 'Bakeries',
+    PlaceCategoryKey.pub: 'Pubs',
+  };
+
+  /// Singular labels per category ("Cafe").
+  static const Map<PlaceCategoryKey, String> categorySingular = {
+    PlaceCategoryKey.cafe: 'Cafe',
+    PlaceCategoryKey.restaurant: 'Restaurant',
+    PlaceCategoryKey.bar: 'Bar',
+    PlaceCategoryKey.museum: 'Museum',
+    PlaceCategoryKey.fastFood: 'Fast Food',
+    PlaceCategoryKey.hotel: 'Hotel',
+    PlaceCategoryKey.bakery: 'Bakery',
+    PlaceCategoryKey.pub: 'Pub',
+  };
+
+  // Place details
+  static const String placeDetails = 'Place Details';
+  static const String photosSuffix = ' Photos';
+  static const String visitedOnPrefix = 'Visited on ';
+  static const String yourPersonalRating = 'Your personal rating';
+  static const String criterionFood = 'Food & Pastry';
+  static const String criterionService = 'Service & Hospitality';
+  static const String criterionAtmosphere = 'Atmosphere & Vibe';
+  static const String outOfFive = ' / 5';
+  static const String notRated = 'Not rated';
+  static const String notesTitle = 'My Notes & Impressions';
+  static const String noNotes = 'No notes yet.';
+  static const String updatedPrefix = 'Updated ';
+  static const String tagsTitle = 'Tags & Highlights';
+  static const String addTag = 'Add Tag';
+  static const String locationTitle = 'Location & Coordinates';
+  static const String openInMaps = 'Open in Apple Maps';
+  static const String deletePlace = 'Delete Place';
+  static const String deleteDialogTitle = 'Delete Place?';
+  static const String deleteDialogMessage =
+      'Are you sure you want to permanently delete this place and all its '
+      'photos?';
+  static const String delete = 'Delete';
+  static const String back = 'Back';
+
+  // Add place
+  static const String addPlaceTitle = 'Add Place';
+  static const String addPhotos = 'Add Photos';
+  static const String addPhotosHint = 'Upload up to 5 photos from library';
+  static const String photosLeftSuffix = ' left';
+  static const String removePhoto = 'Remove photo';
+  static const String venueInfo = 'Venue Info';
+  static const String placeName = 'Place Name';
+  static const String placeNameHint = 'Lumina Osteria';
+  static const String category = 'Category';
+  static const String location = 'Location';
+  static const String defaultLocation = 'Manhattan, Bandery, 5';
+  static const String dateOfVisit = 'Date of Visit';
+  static const String experienceRatings = 'Experience Ratings';
+  static const String avgSuffix = ' avg';
+  static const String ratingFood = 'Food';
+  static const String ratingService = 'Service';
+  static const String ratingAtmosphere = 'Atmosphere';
+  static const String personalNotes = 'Personal Notes';
+  static const String privateToYou = 'Private to you';
+  static const String charsSuffix = ' chars';
+  static const String defaultNote =
+      'The Meyer lemon mascarpone tart is unforgettable. Corner window seat '
+      'with sun flare around 10am is prime for reading and quiet journaling.';
+  static const String tags = 'Tags';
+  static const String tagsSuffix = ' tags';
+  static const String addTagHint = 'Add tag...';
+  static const String savePlaceRecord = 'Save Place Record';
+  static const String done = 'Done';
+
+  // Location picker
+  static const String defaultMapQuery = 'Manhattan, Bandery';
+  static const String pickedPlaceTitle = 'Manhattan, Ukraine';
+  static const String pickedPlaceAddress = 'Bandery, 05, Manhattan, NY, 79090';
+  static const String pickedCoordinates = '40.7587° N, 73.9787° W';
+  static const String confirmLocation = 'Confirm Location';
 
   // Profile
   static const String editProfilePhoto = 'Edit profile photo';
@@ -116,6 +212,22 @@ abstract final class AppStrings {
   static const String ok = 'OK';
 
   // Dates
+  static const String am = 'AM';
+  static const String pm = 'PM';
+  static const List<String> monthsLong = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
   static const List<String> monthsShort = [
     'Jan',
     'Feb',

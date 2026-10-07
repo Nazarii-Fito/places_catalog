@@ -53,6 +53,8 @@ class AppNavHeader extends StatelessWidget implements PreferredSizeWidget {
                   child: Row(
                     children: [
                       ?lead,
+                      if (lead != null && text != null)
+                        const SizedBox(width: AppSpacing.sm),
                       if (text != null) ...[
                         const AppLogo.small(),
                         const SizedBox(width: AppSpacing.sm),

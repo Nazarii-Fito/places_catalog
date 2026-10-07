@@ -204,4 +204,97 @@ abstract final class AppTextStyles {
     color: AppColors.textPrimary,
     leadingDistribution: TextLeadingDistribution.even,
   );
+
+  /// 28/34 Bold — "Favorites" large title.
+  static const TextStyle title1 = TextStyle(
+    fontFamily: fontFamily,
+    fontSize: 28,
+    height: 34 / 28,
+    fontWeight: FontWeight.w700,
+    letterSpacing: -0.7,
+    color: AppColors.textPrimary,
+    leadingDistribution: TextLeadingDistribution.even,
+  );
+
+  /// 22/28 Bold, tight — place name on Place Details.
+  static const TextStyle placeTitle = TextStyle(
+    fontFamily: fontFamily,
+    fontSize: 22,
+    height: 28 / 22,
+    fontWeight: FontWeight.w700,
+    letterSpacing: -0.55,
+    color: AppColors.textPrimary,
+    leadingDistribution: TextLeadingDistribution.even,
+  );
+
+  /// 22/22 Bold — rating number in the orange badge.
+  static const TextStyle ratingBadge = TextStyle(
+    fontFamily: fontFamily,
+    fontSize: 22,
+    height: 22 / 22,
+    fontWeight: FontWeight.w700,
+    color: AppColors.onPrimary,
+    leadingDistribution: TextLeadingDistribution.even,
+  );
+
+  /// 16/26 Regular — personal notes text.
+  static const TextStyle noteBody = TextStyle(
+    fontFamily: fontFamily,
+    fontSize: 16,
+    height: 26 / 16,
+    fontWeight: FontWeight.w400,
+    color: AppColors.textSecondary,
+    leadingDistribution: TextLeadingDistribution.even,
+  );
+
+  /// 15/24.38 Regular — notes text area on Add Place.
+  static const TextStyle noteInput = TextStyle(
+    fontFamily: fontFamily,
+    fontSize: 15,
+    height: 24.38 / 15,
+    fontWeight: FontWeight.w400,
+    color: AppColors.textPrimary,
+    leadingDistribution: TextLeadingDistribution.even,
+  );
+
+  /// 16/21 Regular — search text over the map.
+  static const TextStyle mapSearch = TextStyle(
+    fontFamily: fontFamily,
+    fontSize: 16,
+    height: 21 / 16,
+    fontWeight: FontWeight.w400,
+    color: AppColors.textPrimary,
+    leadingDistribution: TextLeadingDistribution.even,
+  );
+
+  /// 13/18 Regular +0.325 UPPERCASE — Add Place group headers.
+  static const TextStyle formSectionLabel = TextStyle(
+    fontFamily: fontFamily,
+    fontSize: 13,
+    height: 18 / 13,
+    fontWeight: FontWeight.w400,
+    letterSpacing: 0.325,
+    color: AppColors.textSecondary,
+    leadingDistribution: TextLeadingDistribution.even,
+  );
+
+  /// 12/16 Medium — tag chips, small links, photo count.
+  static const TextStyle captionMedium = TextStyle(
+    fontFamily: fontFamily,
+    fontSize: 12,
+    height: 16 / 12,
+    fontWeight: FontWeight.w500,
+    color: AppColors.textPrimary,
+    leadingDistribution: TextLeadingDistribution.even,
+  );
+
+  /// 12/16 SemiBold — compact ratings ("5.0 / 5").
+  static const TextStyle captionSemibold = TextStyle(
+    fontFamily: fontFamily,
+    fontSize: 12,
+    height: 16 / 12,
+    fontWeight: FontWeight.w600,
+    color: AppColors.textPrimary,
+    leadingDistribution: TextLeadingDistribution.even,
+  );
 }
