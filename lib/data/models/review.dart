@@ -11,6 +11,7 @@ class Review {
     this.atmosphereRating,
     this.textNote = '',
     this.tags = const [],
+    this.updatedAt,
   }) : assert(overallRating >= 1 && overallRating <= 5);
 
   final double overallRating;
@@ -19,4 +20,7 @@ class Review {
   final double? atmosphereRating;
   final String textNote;
   final List<String> tags;
+
+  /// When the note was last edited; `null` for imported records.
+  final DateTime? updatedAt;
 }

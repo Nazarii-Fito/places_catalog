@@ -39,6 +39,9 @@ class Place {
 
   int get photosCount => photos.length;
 
+  /// Large photo for Place Details: the first attached photo, or the cover.
+  String get heroImage => photos.isEmpty ? coverImage : photos.first.imageAsset;
+
   /// Overall rating, or 0 when the place has not been reviewed yet.
   double get rating => review?.overallRating ?? 0;
 

@@ -19,18 +19,28 @@ final List<Place> mockPlaces = [
     isFavorite: true,
     latitude: 40.7219,
     longitude: -73.9995,
-    review: const Review(
+    review: Review(
       overallRating: 5.0,
       foodRating: 5.0,
       serviceRating: 4.8,
       atmosphereRating: 5.0,
       textNote:
           'Incredible warm lighting and exposed brick interior. The Ethiopian '
-          'pour-over was exceptional with bright floral notes.',
+          'pour-over was exceptional with bright floral notes, and the '
+          'cardamom morning bun had the most flaky laminated pastry layers. '
+          'Staff was attentive and recommended great beans for home brewing. '
+          'Perfect quiet corner table by the large industrial window.',
       tags: ['#Espresso', '#Pastries', '#QuietWork', '#NaturalLight'],
+      updatedAt: DateTime(2023, 10, 14, 16, 18),
     ),
     photos: const [
+      PlacePhoto(
+        imageAsset: AppAssets.placeDailyGrindHero,
+        fileSizeBytes: 31266,
+      ),
       PlacePhoto(imageAsset: AppAssets.placeDailyGrind, fileSizeBytes: 13997),
+      PlacePhoto(imageAsset: AppAssets.photoCoffee, fileSizeBytes: 9120),
+      PlacePhoto(imageAsset: AppAssets.photoPasta, fileSizeBytes: 9840),
     ],
   ),
   Place(
@@ -81,6 +91,24 @@ final List<Place> mockPlaces = [
       overallRating: 4.7,
       foodRating: 4.9,
       tags: ['#Ramen', '#LateNight'],
+    ),
+  ),
+  Place(
+    id: 'atelier-pastel-cafe',
+    name: 'Atelier Pastel Cafe',
+    category: PlaceCategory.cafe,
+    subtitle: 'Cafe',
+    address: '89 Greenwich Ave, West Village, Manhattan',
+    visitDate: DateTime(2022, 11, 2),
+    coverImage: AppAssets.placeAtelierPastelCafe,
+    isFavorite: true,
+    latitude: 40.7365,
+    longitude: -74.0012,
+    review: const Review(
+      overallRating: 4.9,
+      foodRating: 5.0,
+      atmosphereRating: 4.8,
+      tags: ['#Matcha', '#Croissant'],
     ),
   ),
 ];
