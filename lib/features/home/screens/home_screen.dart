@@ -1,25 +1,35 @@
 import 'package:flutter/material.dart';
 
+import '../../../app/routes/app_routes.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/app_nav_header.dart';
 import '../../../core/widgets/category_chip.dart';
+import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/place_card.dart';
 import '../../../core/widgets/search_field.dart';
-import '../../../data/mock/mock_places.dart';
 import '../../../data/models/place.dart';
 import '../home_filter.dart';
 import '../widgets/catalog_summary_strip.dart';
-import '../widgets/empty_places_view.dart';
 import '../widgets/home_title_row.dart';
 
 /// Home tab — "My Places" catalog (FR3, FR9).
 ///
-/// State: the mock list (favourite flags can change), the search query and
-/// the selected chip. `build` only *derives* the visible list from that
-/// state; it never mutates anything (no side effects in `build`).
+/// The catalog itself comes from `MainShell` ([places]); this screen only
+/// owns UI state — the search query and the selected chip. `build` derives
+/// the visible list from them and never mutates anything (no side effects
+/// in `build`).
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({
+    super.key,
+    required this.places,
+    required this.onToggleFavorite,
+    required this.onOpenPlace,
+  });
+
+  final List<Place> places;
+  final ValueChanged<Place> onToggleFavorite;
+  final ValueChanged<Place> onOpenPlace;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -27,7 +37,6 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _searchController = TextEditingController();
-  List<Place> _places = List.of(mockPlaces);
   HomeFilter _filter = HomeFilter.all;
   String _query = '';
 
@@ -37,15 +46,6 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  void _toggleFavorite(Place place) {
-    setState(() {
-      _places = [
-        for (final Place p in _places)
-          p.id == place.id ? p.copyWith(isFavorite: !p.isFavorite) : p,
-      ];
-    });
-  }
-
   bool _matchesQuery(Place place) {
     final String q = _query.trim().toLowerCase();
     return q.isEmpty ||
@@ -53,15 +53,11 @@ class _HomeScreenState extends State<HomeScreen> {
         place.subtitle.toLowerCase().contains(q);
   }
 
-  // Lab 3 has no "Add place" / "Details" logic yet — these screens are
-  // wired in stage 2, so the taps are intentionally no-ops for now.
-  void _onAddPlace() {}
-
-  void _onOpenPlace(Place place) {}
+  void _openAddPlace() => Navigator.of(context).pushNamed(AppRoutes.addPlace);
 
   @override
   Widget build(BuildContext context) {
-    final List<Place> visible = _places
+    final List<Place> visible = widget.places
         .where(_filter.matches)
         .where(_matchesQuery)
         .toList();
@@ -80,7 +76,7 @@ class _HomeScreenState extends State<HomeScreen> {
               bottom: insets.bottom + 20,
             ),
             children: [
-              _Padded(child: HomeTitleRow(onAdd: _onAddPlace)),
+              _Padded(child: HomeTitleRow(onAdd: _openAddPlace)),
               const SizedBox(height: AppSpacing.m),
               _Padded(
                 child: SearchField(
@@ -114,7 +110,10 @@ class _HomeScreenState extends State<HomeScreen> {
               _Padded(child: CatalogSummaryStrip(count: visible.length)),
               const SizedBox(height: AppSpacing.m),
               if (visible.isEmpty)
-                const EmptyPlacesView()
+                const EmptyState(
+                  title: AppStrings.emptyTitle,
+                  subtitle: AppStrings.emptySubtitle,
+                )
               else
                 _Padded(
                   child: Column(
@@ -123,8 +122,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         .map(
                           (Place place) => PlaceCard(
                             place: place,
-                            onTap: () => _onOpenPlace(place),
-                            onFavoriteToggle: () => _toggleFavorite(place),
+                            onTap: () => widget.onOpenPlace(place),
+                            onFavoriteToggle: () =>
+                                widget.onToggleFavorite(place),
                           ),
                         )
                         .toList(),
