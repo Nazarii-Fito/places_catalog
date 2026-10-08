@@ -45,7 +45,8 @@ class Place {
   /// Overall rating, or 0 when the place has not been reviewed yet.
   double get rating => review?.overallRating ?? 0;
 
-  Place copyWith({bool? isFavorite}) {
+  /// Returns a copy with the given fields replaced (immutable update).
+  Place copyWith({bool? isFavorite, Review? review}) {
     return Place(
       id: id,
       name: name,
@@ -54,7 +55,7 @@ class Place {
       address: address,
       visitDate: visitDate,
       coverImage: coverImage,
-      review: review,
+      review: review ?? this.review,
       isFavorite: isFavorite ?? this.isFavorite,
       latitude: latitude,
       longitude: longitude,

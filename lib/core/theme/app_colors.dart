@@ -59,10 +59,6 @@ abstract final class AppColors {
   /// #FFDAD6 at 60 % — background of the "Delete Place" button.
   static const Color destructiveContainer = Color(0x99FFDAD6);
   static const Color star = Color(0xFFFE9400);
-  static const Color success = Color(0xFF006B27);
-
-  /// Success at 10 % — background of the "Active" status badge.
-  static const Color successTint = Color(0x1A006B27);
   static const Color cafeAccent = Color(0xFF8C5000);
 
   // Overlays on photos and maps

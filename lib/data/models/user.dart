@@ -20,16 +20,44 @@ class User {
   const User({
     required this.fullName,
     required this.email,
-    required this.avatarAsset,
+    this.avatarAsset,
     required this.registrationDate,
     required this.stats,
   });
 
   final String fullName;
   final String email;
-  final String avatarAsset;
+
+  /// Bundled avatar image; `null` after the user removes the photo
+  /// (the UI then shows initials).
+  final String? avatarAsset;
   final DateTime registrationDate;
   final UserStats stats;
 
   int get totalVisitedPlaces => stats.totalVisitedPlaces;
+
+  /// Initials for the avatar placeholder, e.g. "NF".
+  String get initials => fullName
+      .split(' ')
+      .where((String part) => part.isNotEmpty)
+      .take(2)
+      .map((String part) => part[0].toUpperCase())
+      .join();
+
+  /// Returns a copy with edited profile fields. [removeAvatar] clears the
+  /// photo, because a `null` [avatarAsset] already means "keep current".
+  User copyWith({
+    String? fullName,
+    String? email,
+    String? avatarAsset,
+    bool removeAvatar = false,
+  }) {
+    return User(
+      fullName: fullName ?? this.fullName,
+      email: email ?? this.email,
+      avatarAsset: removeAvatar ? null : avatarAsset ?? this.avatarAsset,
+      registrationDate: registrationDate,
+      stats: stats,
+    );
+  }
 }

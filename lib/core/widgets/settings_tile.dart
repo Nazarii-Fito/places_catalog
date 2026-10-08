@@ -9,26 +9,23 @@ import '../theme/app_text_styles.dart';
 import 'app_svg_icon.dart';
 import 'pressable_opacity.dart';
 
-/// One row of an iOS inset grouped list: icon tile, title, optional
-/// status [badge] and a disclosure chevron.
+/// One row of an iOS inset grouped list: icon tile, title and a
+/// disclosure chevron.
 class SettingsTile extends StatelessWidget {
   const SettingsTile({
     super.key,
     required this.icon,
     required this.title,
     required this.onTap,
-    this.badge,
   });
 
   /// Icon widget placed inside the grey 32×32 tile.
   final Widget icon;
   final String title;
   final VoidCallback onTap;
-  final String? badge;
 
   @override
   Widget build(BuildContext context) {
-    final String? badgeText = badge;
     return Semantics(
       button: true,
       child: PressableOpacity(
@@ -59,38 +56,10 @@ class SettingsTile extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                if (badgeText != null) ...[
-                  _StatusBadge(text: badgeText),
-                  const SizedBox(width: AppSpacing.sm),
-                ],
                 const AppSvgIcon(AppAssets.iconChevronRight),
               ],
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-      decoration: const BoxDecoration(
-        color: AppColors.successTint,
-        borderRadius: AppRadii.pillAll,
-      ),
-      child: Text(
-        text,
-        style: AppTextStyles.caption.copyWith(
-          color: AppColors.success,
-          fontWeight: FontWeight.w600,
         ),
       ),
     );

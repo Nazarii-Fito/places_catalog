@@ -75,7 +75,11 @@ abstract final class AppStrings {
   static const String filterFiveStars = '★ 5 Stars';
   static const String filterBakeries = 'Bakeries';
   static const String recordedSpots = ' recorded spots';
-  static const String sortedByRecent = 'Sorted by Recent';
+  static const String sortedByPrefix = 'Sorted by ';
+  static const String sortRecent = 'Recent';
+  static const String sortOldest = 'Oldest';
+  static const String sortRating = 'Rating';
+  static const String sortName = 'Name';
   static const String visitedPrefix = 'Visited ';
   static const String toggleFavorite = 'Toggle favorite';
   static const String emptyTitle = 'No places found';
@@ -84,7 +88,6 @@ abstract final class AppStrings {
   // Favorites
   static const String favoritesHeader = 'Saved Favorites';
   static const String favoritesTitle = 'Favorites';
-  static const String edit = 'Edit';
   static const String searchFavoritesHint = 'Search favorites...';
   static const String noFavoritesTitle = 'No favorites yet';
   static const String noFavoritesSubtitle =
@@ -125,10 +128,16 @@ abstract final class AppStrings {
   static const String outOfFive = ' / 5';
   static const String notRated = 'Not rated';
   static const String notesTitle = 'My Notes & Impressions';
+  static const String edit = 'Edit';
   static const String noNotes = 'No notes yet.';
   static const String updatedPrefix = 'Updated ';
   static const String tagsTitle = 'Tags & Highlights';
   static const String addTag = 'Add Tag';
+  static const String newTagTitle = 'New Tag';
+  static const String newTagMessage = 'Short keyword, e.g. Brunch';
+  static const String newTagHint = 'Tag';
+  static const String add = 'Add';
+  static const String notesHint = 'Write your impressions...';
   static const String locationTitle = 'Location & Coordinates';
   static const String openInMaps = 'Open in Apple Maps';
   static const String deletePlace = 'Delete Place';
@@ -177,7 +186,7 @@ abstract final class AppStrings {
   static const String confirmLocation = 'Confirm Location';
 
   // Profile
-  static const String editProfilePhoto = 'Edit profile photo';
+  static const String editProfilePhoto = 'Edit profile';
   static const String archivedCatalog = 'Archived Catalog';
   static const String totalVisitedPlaces = 'Total Visited Places';
   static const String statCafes = 'Cafes';
@@ -186,12 +195,35 @@ abstract final class AppStrings {
   static const String statFavorites = 'Favorites';
   static const String accountSettings = 'Account Settings';
   static const String changePassword = 'Change Password';
-  static const String appSettings = 'App Settings';
-  static const String icloudSync = 'iCloud Sync & Backup';
-  static const String active = 'Active';
   static const String dataAndPrivacy = 'Data & Privacy';
   static const String exportArchive = 'Export Places Archive';
   static const String logOut = 'Log Out';
+  // Edit profile
+  static const String editProfile = 'Edit Profile';
+  static const String accountOverline = 'Account';
+  static const String editProfileSubtitle =
+      'Update how your name and email appear in PlacesCatalog.';
+  static const String changePhoto = 'Change Photo';
+  static const String removeProfilePhoto = 'Remove Photo';
+  static const String useDefaultPhoto = 'Use Default Photo';
+  static const String saveChanges = 'Save Changes';
+  static const String profileUpdatedTitle = 'Profile Updated';
+  static const String profileUpdatedMessage = 'Your changes have been saved.';
+
+  // Export archive (FR2)
+  static const String exportTitle = 'Export Archive';
+  static const String exportOverline = 'Data & Privacy';
+  static const String exportSubtitle =
+      'All your places, ratings, notes and tags in one JSON file.';
+  static const String exportFileName = 'places_archive.json';
+  static const String placesSuffix = ' places';
+  static const String kilobytesSuffix = ' KB';
+  static const String jsonPreview = 'Preview';
+  static const String copyJson = 'Copy JSON';
+  static const String copiedTitle = 'Archive Copied';
+  static const String copiedMessage =
+      'The JSON archive is in the clipboard — paste it into Notes or Files.';
+
   static const String logOutDialogTitle = 'Log Out?';
   static const String logOutDialogMessage =
       'You will need to sign in again to see your places.';

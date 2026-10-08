@@ -11,19 +11,37 @@ import '../../../core/widgets/app_svg_icon.dart';
 import '../../../core/widgets/section_label.dart';
 import '../../../core/widgets/settings_tile.dart';
 import '../../../data/mock/mock_user.dart';
+import '../../../data/models/place.dart';
 import '../../../data/models/user.dart';
 import '../widgets/activity_summary_card.dart';
 import '../widgets/log_out_button.dart';
 import '../widgets/profile_hero.dart';
 
-/// Profile tab (FR2): user data, statistics, settings and log-out.
+/// Profile tab (FR2): user data, statistics, password change, archive
+/// export and log-out.
 ///
-/// Stateless — everything comes from the hardcoded [mockUser]; the only
-/// interaction with a result is the log-out confirmation.
-class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({super.key});
+/// Starts from the hardcoded [mockUser]; the edited copy returned by
+/// Edit Profile is kept in this screen's state.
+class ProfileScreen extends StatefulWidget {
+  const ProfileScreen({super.key, required this.places});
 
-  Future<void> _confirmLogOut(BuildContext context) async {
+  /// Current catalog — the source of the JSON export.
+  final List<Place> places;
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  User _user = mockUser;
+
+  Future<void> _editProfile() async {
+    final Object? result = await Navigator.of(context)
+        .pushNamed(AppRoutes.editProfile, arguments: _user);
+    if (result is User) setState(() => _user = result);
+  }
+
+  Future<void> _confirmLogOut() async {
     final NavigatorState navigator = Navigator.of(context);
     final bool confirmed = await AppConfirmDialog.show(
       context,
@@ -39,13 +57,8 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  // App Settings, iCloud sync, export and photo editing have no screens in
-  // Lab 3 (no business logic) — these rows are intentionally inert.
-  static void _notImplemented() {}
-
   @override
   Widget build(BuildContext context) {
-    final User user = mockUser;
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: const AppNavHeader(title: AppStrings.tabProfile),
@@ -61,13 +74,14 @@ class ProfileScreen extends StatelessWidget {
             ),
             children: [
               ProfileHero(
-                name: user.fullName,
-                email: user.email,
-                avatarAsset: user.avatarAsset,
-                onEditPhoto: _notImplemented,
+                name: _user.fullName,
+                email: _user.email,
+                avatarAsset: _user.avatarAsset,
+                initials: _user.initials,
+                onEdit: _editProfile,
               ),
               const SizedBox(height: AppSpacing.l),
-              ActivitySummaryCard(stats: user.stats),
+              ActivitySummaryCard(stats: _user.stats),
               const SizedBox(height: AppSpacing.l),
               const SectionLabel(AppStrings.accountSettings),
               const SizedBox(height: AppSpacing.s),
@@ -84,41 +98,25 @@ class ProfileScreen extends StatelessWidget {
                         Navigator.of(context)
                             .pushNamed(AppRoutes.changePassword),
                   ),
-                  const SettingsTile(
-                    icon: Icon(
-                      Icons.settings_outlined,
-                      size: 17,
-                      color: AppColors.textPrimary,
-                    ),
-                    title: AppStrings.appSettings,
-                    onTap: _notImplemented,
-                  ),
-                  const SettingsTile(
-                    icon: Icon(
-                      Icons.cloud_outlined,
-                      size: 17,
-                      color: AppColors.textPrimary,
-                    ),
-                    title: AppStrings.icloudSync,
-                    badge: AppStrings.active,
-                    onTap: _notImplemented,
-                  ),
                 ],
               ),
               const SizedBox(height: AppSpacing.l),
               const SectionLabel(AppStrings.dataAndPrivacy),
               const SizedBox(height: AppSpacing.s),
-              const SettingsGroup(
+              SettingsGroup(
                 children: [
                   SettingsTile(
-                    icon: AppSvgIcon(AppAssets.iconDownload),
+                    icon: const AppSvgIcon(AppAssets.iconDownload),
                     title: AppStrings.exportArchive,
-                    onTap: _notImplemented,
+                    onTap: () => Navigator.of(context).pushNamed(
+                      AppRoutes.exportArchive,
+                      arguments: widget.places,
+                    ),
                   ),
                 ],
               ),
               const SizedBox(height: AppSpacing.l + AppSpacing.xs),
-              LogOutButton(onPressed: () => _confirmLogOut(context)),
+              LogOutButton(onPressed: _confirmLogOut),
             ],
           );
         },

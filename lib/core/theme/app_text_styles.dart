@@ -297,4 +297,15 @@ abstract final class AppTextStyles {
     color: AppColors.textPrimary,
     leadingDistribution: TextLeadingDistribution.even,
   );
+
+  /// 12/18 monospace — JSON preview on the export screen. Uses the system
+  /// Menlo (iOS) / monospace (Android), no bundled font needed.
+  static const TextStyle code = TextStyle(
+    fontFamily: 'Menlo',
+    fontFamilyFallback: ['Courier', 'monospace'],
+    fontSize: 12,
+    height: 18 / 12,
+    color: AppColors.textSecondary,
+    leadingDistribution: TextLeadingDistribution.even,
+  );
 }

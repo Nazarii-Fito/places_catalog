@@ -53,6 +53,14 @@ class _MainShellState extends State<MainShell> {
     });
   }
 
+  void _updatePlace(Place updated) {
+    setState(() {
+      _places = [
+        for (final Place p in _places) p.id == updated.id ? updated : p,
+      ];
+    });
+  }
+
   void _deletePlace(Place place) {
     setState(() {
       _places = _places.where((Place p) => p.id != place.id).toList();
@@ -65,6 +73,7 @@ class _MainShellState extends State<MainShell> {
       arguments: PlaceDetailsArgs(
         place: place,
         onToggleFavorite: _toggleFavorite,
+        onUpdate: _updatePlace,
         onDelete: _deletePlace,
       ),
     );
@@ -87,7 +96,7 @@ class _MainShellState extends State<MainShell> {
             onToggleFavorite: _toggleFavorite,
             onOpenPlace: _openPlace,
           ),
-          const ProfileScreen(),
+          ProfileScreen(places: _places),
         ],
       ),
       bottomNavigationBar: AppBottomNavBar(

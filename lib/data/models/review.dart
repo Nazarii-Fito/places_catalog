@@ -23,4 +23,17 @@ class Review {
 
   /// When the note was last edited; `null` for imported records.
   final DateTime? updatedAt;
+
+  /// Returns a copy with an edited note and/or tags.
+  Review copyWith({String? textNote, List<String>? tags, DateTime? updatedAt}) {
+    return Review(
+      overallRating: overallRating,
+      foodRating: foodRating,
+      serviceRating: serviceRating,
+      atmosphereRating: atmosphereRating,
+      textNote: textNote ?? this.textNote,
+      tags: tags ?? this.tags,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
 }

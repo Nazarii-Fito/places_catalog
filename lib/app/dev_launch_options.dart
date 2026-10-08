@@ -25,6 +25,7 @@ abstract final class DevLaunchOptions {
   static PlaceDetailsArgs get previewDetailsArgs => PlaceDetailsArgs(
     place: mockPlaces.first,
     onToggleFavorite: (_) {},
+    onUpdate: (_) {},
     onDelete: (_) {},
   );
 }

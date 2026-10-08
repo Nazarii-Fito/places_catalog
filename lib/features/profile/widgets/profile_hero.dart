@@ -8,8 +8,9 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/app_svg_icon.dart';
 import '../../../core/widgets/pressable_opacity.dart';
+import '../../../core/widgets/user_avatar.dart';
 
-/// Avatar with the "edit" badge, name and e-mail.
+/// Avatar with the "edit profile" badge, name and e-mail.
 ///
 /// The badge overlaps the avatar's bottom-right corner — a [Stack] with
 /// `Clip.none` lets it stick out of the circle as in Figma.
@@ -19,13 +20,15 @@ class ProfileHero extends StatelessWidget {
     required this.name,
     required this.email,
     required this.avatarAsset,
-    required this.onEditPhoto,
+    required this.initials,
+    required this.onEdit,
   });
 
   final String name;
   final String email;
-  final String avatarAsset;
-  final VoidCallback onEditPhoto;
+  final String? avatarAsset;
+  final String initials;
+  final VoidCallback onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -35,17 +38,7 @@ class ProfileHero extends StatelessWidget {
         Stack(
           clipBehavior: Clip.none,
           children: [
-            Container(
-              width: AppSizes.avatar,
-              height: AppSizes.avatar,
-              clipBehavior: Clip.antiAlias,
-              decoration: const BoxDecoration(
-                color: AppColors.surfaceContainerHigh,
-                shape: BoxShape.circle,
-                boxShadow: AppShadows.elevated,
-              ),
-              child: Image.asset(avatarAsset, fit: BoxFit.cover),
-            ),
+            UserAvatar(imageAsset: avatarAsset, initials: initials),
             // 44 pt hit area centred on the 36 pt badge.
             Positioned(
               right: -8,
@@ -54,7 +47,7 @@ class ProfileHero extends StatelessWidget {
                 button: true,
                 label: AppStrings.editProfilePhoto,
                 child: PressableOpacity(
-                  onTap: onEditPhoto,
+                  onTap: onEdit,
                   child: SizedBox.square(
                     dimension: AppSpacing.minTapTarget,
                     child: Center(

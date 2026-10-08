@@ -7,7 +7,13 @@ import '../../features/places/place_details_args.dart';
 import '../../features/places/screens/add_place_screen.dart';
 import '../../features/places/screens/location_picker_screen.dart';
 import '../../features/places/screens/place_details_screen.dart';
+import '../../data/mock/mock_places.dart';
+import '../../data/mock/mock_user.dart';
+import '../../data/models/place.dart';
+import '../../data/models/user.dart';
 import '../../features/profile/screens/change_password_screen.dart';
+import '../../features/profile/screens/edit_profile_screen.dart';
+import '../../features/profile/screens/export_archive_screen.dart';
 import '../../features/shell/main_shell.dart';
 import '../dev_launch_options.dart';
 
@@ -24,6 +30,8 @@ abstract final class AppRoutes {
   static const String placeDetails = '/place-details';
   static const String addPlace = '/add-place';
   static const String locationPicker = '/location-picker';
+  static const String editProfile = '/edit-profile';
+  static const String exportArchive = '/export-archive';
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     final WidgetBuilder builder = switch (settings.name) {
@@ -39,6 +47,12 @@ abstract final class AppRoutes {
       ),
       AppRoutes.addPlace => (_) => const AddPlaceScreen(),
       AppRoutes.locationPicker => (_) => const LocationPickerScreen(),
+      AppRoutes.editProfile => (_) => EditProfileScreen(
+        user: settings.arguments as User? ?? mockUser,
+      ),
+      AppRoutes.exportArchive => (_) => ExportArchiveScreen(
+        places: settings.arguments as List<Place>? ?? mockPlaces,
+      ),
       _ => (_) => const LoginScreen(),
     };
     return CupertinoPageRoute<Object?>(
