@@ -133,6 +133,7 @@ abstract final class AppStrings {
   static const String updatedPrefix = 'Updated ';
   static const String tagsTitle = 'Tags & Highlights';
   static const String addTag = 'Add Tag';
+  static const String removeTag = 'Remove tag';
   static const String newTagTitle = 'New Tag';
   static const String newTagMessage = 'Short keyword, e.g. Brunch';
   static const String newTagHint = 'Tag';
@@ -174,7 +175,6 @@ abstract final class AppStrings {
       'with sun flare around 10am is prime for reading and quiet journaling.';
   static const String tags = 'Tags';
   static const String tagsSuffix = ' tags';
-  static const String addTagHint = 'Add tag...';
   static const String savePlaceRecord = 'Save Place Record';
   static const String done = 'Done';
 

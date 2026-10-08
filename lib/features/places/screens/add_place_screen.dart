@@ -9,16 +9,17 @@ import '../../../core/theme/app_shadows.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/date_formatter.dart';
+import '../../../core/widgets/add_tag_dialog.dart';
 import '../../../core/widgets/app_nav_header.dart';
 import '../../../core/widgets/app_svg_icon.dart';
 import '../../../core/widgets/nav_back_button.dart';
 import '../../../core/widgets/pressable_opacity.dart';
 import '../../../core/widgets/primary_button.dart';
+import '../../../core/widgets/tag_list.dart';
 import '../../../data/models/place_category.dart';
 import '../widgets/form_group.dart';
 import '../widgets/photo_picker_panel.dart';
 import '../widgets/star_rating_input.dart';
-import '../widgets/tag_editor.dart';
 import 'add_place_pickers.dart';
 
 /// New place record (FR4, FR8). Pure UI state: photos, fields, ratings,
@@ -44,7 +45,6 @@ class _AddPlaceScreenState extends State<AddPlaceScreen> {
   final TextEditingController _notesController = TextEditingController(
     text: AppStrings.defaultNote,
   );
-  final TextEditingController _tagController = TextEditingController();
 
   List<String> _photos = List.of(_demoPhotos);
   PlaceCategory _category = PlaceCategory.cafe;
@@ -66,7 +66,6 @@ class _AddPlaceScreenState extends State<AddPlaceScreen> {
   void dispose() {
     _nameController.dispose();
     _notesController.dispose();
-    _tagController.dispose();
     super.dispose();
   }
 
@@ -97,11 +96,10 @@ class _AddPlaceScreenState extends State<AddPlaceScreen> {
     if (result is String) setState(() => _location = result);
   }
 
-  void _addTag(String raw) {
-    final String text = raw.trim().replaceAll('#', '');
-    if (text.isEmpty) return;
-    setState(() => _tags = [..._tags, '#$text']);
-    _tagController.clear();
+  Future<void> _addTag() async {
+    final String? tag = await showAddTagDialog(context);
+    if (tag == null || _tags.contains(tag)) return;
+    setState(() => _tags = [..._tags, tag]);
   }
 
   void _removeTag(String tag) =>
@@ -224,11 +222,18 @@ class _AddPlaceScreenState extends State<AddPlaceScreen> {
                 trailing: _SectionNote(
                   '${_tags.length}${AppStrings.tagsSuffix}',
                 ),
-                child: TagEditor(
-                  tags: _tags,
-                  controller: _tagController,
-                  onAdd: _addTag,
-                  onRemove: _removeTag,
+                child: Container(
+                  padding: const EdgeInsets.all(AppSpacing.m),
+                  decoration: const BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: AppRadii.mdAll,
+                    boxShadow: AppShadows.subtle,
+                  ),
+                  child: TagList(
+                    tags: _tags,
+                    onAdd: _addTag,
+                    onRemove: _removeTag,
+                  ),
                 ),
               ),
               const SizedBox(height: AppSpacing.l + AppSpacing.sm),

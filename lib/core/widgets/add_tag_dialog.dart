@@ -1,6 +1,6 @@
 import 'package:flutter/cupertino.dart';
 
-import '../../../core/constants/app_strings.dart';
+import '../constants/app_strings.dart';
 
 /// iOS alert with a text field for a new hashtag.
 ///

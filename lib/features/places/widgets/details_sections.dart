@@ -9,6 +9,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/app_svg_icon.dart';
 import '../../../core/widgets/pressable_opacity.dart';
+import '../../../core/widgets/tag_list.dart';
 import '../../../core/utils/date_formatter.dart';
 
 /// "My Notes & Impressions": read-only note with an Edit button that
@@ -32,6 +33,8 @@ class NotesSection extends StatefulWidget {
 }
 
 class _NotesSectionState extends State<NotesSection> {
+  static const double _caretMargin = 3;
+
   late final TextEditingController _controller = TextEditingController(
     text: widget.note,
   );
@@ -90,10 +93,10 @@ class _NotesSectionState extends State<NotesSection> {
         ),
         Container(
           padding: const EdgeInsets.all(AppSpacing.ml),
+          // Same fill, padding and 1 pt border in both modes — only the
+          // border colour changes, so the box never jumps when editing.
           decoration: BoxDecoration(
-            color: _editing
-                ? AppColors.surface
-                : AppColors.surfaceContainerLowTranslucent,
+            color: AppColors.surfaceContainerLowTranslucent,
             borderRadius: AppRadii.mdAll,
             border: Border.all(
               color: _editing ? AppColors.primary : AppColors.transparent,
@@ -114,11 +117,17 @@ class _NotesSectionState extends State<NotesSection> {
                   ),
                 )
               else
-                Text(
-                  widget.note.isEmpty ? AppStrings.noNotes : widget.note,
-                  style: AppTextStyles.noteBody,
+                // A TextField keeps room for the caret on the right
+                // (cursor 2 pt + 1 pt gap); the same inset here keeps the
+                // line breaks identical when switching to Edit.
+                Padding(
+                  padding: const EdgeInsets.only(right: _caretMargin),
+                  child: Text(
+                    widget.note.isEmpty ? AppStrings.noNotes : widget.note,
+                    style: AppTextStyles.noteBody,
+                  ),
                 ),
-              if (updated != null && !_editing) ...[
+              if (updated != null) ...[
                 const SizedBox(height: 18),
                 Text(
                   AppStrings.updatedPrefix + formatDateTime(updated),
@@ -136,12 +145,18 @@ class _NotesSectionState extends State<NotesSection> {
   }
 }
 
-/// "Tags & Highlights": wrapping blue hashtags plus "+ Add Tag".
+/// "Tags & Highlights" title above the shared [TagList].
 class TagsSection extends StatelessWidget {
-  const TagsSection({super.key, required this.tags, required this.onAddTag});
+  const TagsSection({
+    super.key,
+    required this.tags,
+    required this.onAddTag,
+    required this.onRemoveTag,
+  });
 
   final List<String> tags;
   final VoidCallback onAddTag;
+  final ValueChanged<String> onRemoveTag;
 
   @override
   Widget build(BuildContext context) {
@@ -150,69 +165,8 @@ class TagsSection extends StatelessWidget {
       spacing: AppSpacing.sm,
       children: [
         const Text(AppStrings.tagsTitle, style: AppTextStyles.footnoteSemibold),
-        Wrap(
-          spacing: AppSpacing.sm,
-          runSpacing: AppSpacing.s,
-          children: [
-            ...tags.map((String tag) => _TagPill(text: tag)),
-            PressableOpacity(
-              onTap: onAddTag,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.sm,
-                  vertical: AppSpacing.xs,
-                ),
-                decoration: const BoxDecoration(
-                  color: AppColors.surfaceContainerHigh,
-                  borderRadius: AppRadii.pillAll,
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  spacing: AppSpacing.xs,
-                  children: [
-                    const AppSvgIcon(
-                      AppAssets.iconPlus,
-                      width: 7.583,
-                      height: 7.583,
-                      color: AppColors.textSecondary,
-                    ),
-                    Text(
-                      AppStrings.addTag,
-                      style: AppTextStyles.captionMedium.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
+        TagList(tags: tags, onAdd: onAddTag, onRemove: onRemoveTag),
       ],
-    );
-  }
-}
-
-class _TagPill extends StatelessWidget {
-  const _TagPill({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: AppSpacing.xs,
-      ),
-      decoration: const BoxDecoration(
-        color: AppColors.surfaceContainerLow,
-        borderRadius: AppRadii.pillAll,
-      ),
-      child: Text(
-        text,
-        style: AppTextStyles.captionMedium.copyWith(color: AppColors.primary),
-      ),
     );
   }
 }

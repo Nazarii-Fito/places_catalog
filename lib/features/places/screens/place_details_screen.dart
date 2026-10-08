@@ -8,6 +8,7 @@ import '../../../core/theme/app_shadows.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/date_formatter.dart';
+import '../../../core/widgets/add_tag_dialog.dart';
 import '../../../core/widgets/app_confirm_dialog.dart';
 import '../../../core/widgets/app_nav_header.dart';
 import '../../../core/widgets/app_svg_icon.dart';
@@ -17,7 +18,6 @@ import '../../../data/models/place.dart';
 import '../../../data/models/place_category.dart';
 import '../../../data/models/review.dart';
 import '../place_details_args.dart';
-import '../widgets/add_tag_dialog.dart';
 import '../widgets/details_hero.dart';
 import '../widgets/details_sections.dart';
 import '../widgets/rating_summary_card.dart';
@@ -72,6 +72,10 @@ class _PlaceDetailsScreenState extends State<PlaceDetailsScreen> {
     _updateReview(review.copyWith(tags: [...review.tags, tag]));
   }
 
+  void _removeTag(Review review, String tag) => _updateReview(
+    review.copyWith(tags: review.tags.where((String t) => t != tag).toList()),
+  );
+
   // Opening Apple Maps needs a platform plugin (url_launcher), which is out
   // of Lab 3 scope; the link is shown as designed but inert.
   void _openMaps() {}
@@ -117,6 +121,7 @@ class _PlaceDetailsScreenState extends State<PlaceDetailsScreen> {
                       TagsSection(
                         tags: review.tags,
                         onAddTag: () => _addTag(review),
+                        onRemoveTag: (String tag) => _removeTag(review, tag),
                       ),
                     ],
                     const SizedBox(height: 28),

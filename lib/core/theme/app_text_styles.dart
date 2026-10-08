@@ -7,7 +7,9 @@ import 'app_colors.dart';
 /// Every style is a compile-time constant, so widgets can stay `const`.
 /// Conversion rules:
 /// * `height = lineHeightPx / fontSize` (Figma line height → Flutter factor);
-/// * `letterSpacing` is already in logical px (Figma `tracking-[...]`);
+/// * `letterSpacing` is already in logical px (Figma `tracking-[...]`) and
+///   is always set (0 when Figma has none) — otherwise a TextField would
+///   inherit Material 3's `bodyLarge` tracking of 0.5;
 /// * `leadingDistribution: even` splits extra leading evenly above and below
 ///   the glyphs, exactly like Figma does.
 abstract final class AppTextStyles {
@@ -31,6 +33,7 @@ abstract final class AppTextStyles {
     height: 28 / 22,
     fontWeight: FontWeight.w700,
     color: AppColors.textPrimary,
+    letterSpacing: 0,
     leadingDistribution: TextLeadingDistribution.even,
   );
 
@@ -41,6 +44,7 @@ abstract final class AppTextStyles {
     height: 22 / 17,
     fontWeight: FontWeight.w600,
     color: AppColors.textPrimary,
+    letterSpacing: 0,
     leadingDistribution: TextLeadingDistribution.even,
   );
 
@@ -51,6 +55,7 @@ abstract final class AppTextStyles {
     height: 23.38 / 17,
     fontWeight: FontWeight.w600,
     color: AppColors.textPrimary,
+    letterSpacing: 0,
     leadingDistribution: TextLeadingDistribution.even,
   );
 
@@ -60,6 +65,7 @@ abstract final class AppTextStyles {
     fontSize: 17,
     fontWeight: FontWeight.w400,
     color: AppColors.textPrimary,
+    letterSpacing: 0,
     leadingDistribution: TextLeadingDistribution.even,
   );
 
@@ -70,6 +76,7 @@ abstract final class AppTextStyles {
     height: 22 / 17,
     fontWeight: FontWeight.w400,
     color: AppColors.textPrimary,
+    letterSpacing: 0,
     leadingDistribution: TextLeadingDistribution.even,
   );
 
@@ -80,6 +87,7 @@ abstract final class AppTextStyles {
     height: 20 / 15,
     fontWeight: FontWeight.w400,
     color: AppColors.textPrimary,
+    letterSpacing: 0,
     leadingDistribution: TextLeadingDistribution.even,
   );
 
@@ -90,6 +98,7 @@ abstract final class AppTextStyles {
     height: 18.75 / 15,
     fontWeight: FontWeight.w400,
     color: AppColors.textSecondary,
+    letterSpacing: 0,
     leadingDistribution: TextLeadingDistribution.even,
   );
 
@@ -99,6 +108,7 @@ abstract final class AppTextStyles {
     fontSize: 15,
     fontWeight: FontWeight.w400,
     color: AppColors.textPrimary,
+    letterSpacing: 0,
     leadingDistribution: TextLeadingDistribution.even,
   );
 
@@ -109,6 +119,7 @@ abstract final class AppTextStyles {
     height: 20 / 15,
     fontWeight: FontWeight.w600,
     color: AppColors.textPrimary,
+    letterSpacing: 0,
     leadingDistribution: TextLeadingDistribution.even,
   );
 
@@ -119,6 +130,7 @@ abstract final class AppTextStyles {
     height: 18 / 13,
     fontWeight: FontWeight.w400,
     color: AppColors.textPrimary,
+    letterSpacing: 0,
     leadingDistribution: TextLeadingDistribution.even,
   );
 
@@ -129,6 +141,7 @@ abstract final class AppTextStyles {
     height: 18 / 13,
     fontWeight: FontWeight.w500,
     color: AppColors.textPrimary,
+    letterSpacing: 0,
     leadingDistribution: TextLeadingDistribution.even,
   );
 
@@ -139,6 +152,7 @@ abstract final class AppTextStyles {
     height: 18 / 13,
     fontWeight: FontWeight.w600,
     color: AppColors.textPrimary,
+    letterSpacing: 0,
     leadingDistribution: TextLeadingDistribution.even,
   );
 
@@ -149,6 +163,7 @@ abstract final class AppTextStyles {
     height: 16 / 12,
     fontWeight: FontWeight.w400,
     color: AppColors.textPrimary,
+    letterSpacing: 0,
     leadingDistribution: TextLeadingDistribution.even,
   );
 
@@ -159,6 +174,7 @@ abstract final class AppTextStyles {
     height: 19.5 / 12,
     fontWeight: FontWeight.w400,
     color: AppColors.textTertiary,
+    letterSpacing: 0,
     leadingDistribution: TextLeadingDistribution.even,
   );
 
@@ -202,6 +218,7 @@ abstract final class AppTextStyles {
     height: 13 / 11,
     fontWeight: FontWeight.w500,
     color: AppColors.textPrimary,
+    letterSpacing: 0,
     leadingDistribution: TextLeadingDistribution.even,
   );
 
@@ -234,6 +251,7 @@ abstract final class AppTextStyles {
     height: 22 / 22,
     fontWeight: FontWeight.w700,
     color: AppColors.onPrimary,
+    letterSpacing: 0,
     leadingDistribution: TextLeadingDistribution.even,
   );
 
@@ -244,6 +262,7 @@ abstract final class AppTextStyles {
     height: 26 / 16,
     fontWeight: FontWeight.w400,
     color: AppColors.textSecondary,
+    letterSpacing: 0,
     leadingDistribution: TextLeadingDistribution.even,
   );
 
@@ -254,6 +273,7 @@ abstract final class AppTextStyles {
     height: 24.38 / 15,
     fontWeight: FontWeight.w400,
     color: AppColors.textPrimary,
+    letterSpacing: 0,
     leadingDistribution: TextLeadingDistribution.even,
   );
 
@@ -264,6 +284,7 @@ abstract final class AppTextStyles {
     height: 21 / 16,
     fontWeight: FontWeight.w400,
     color: AppColors.textPrimary,
+    letterSpacing: 0,
     leadingDistribution: TextLeadingDistribution.even,
   );
 
@@ -285,6 +306,7 @@ abstract final class AppTextStyles {
     height: 16 / 12,
     fontWeight: FontWeight.w500,
     color: AppColors.textPrimary,
+    letterSpacing: 0,
     leadingDistribution: TextLeadingDistribution.even,
   );
 
@@ -295,6 +317,7 @@ abstract final class AppTextStyles {
     height: 16 / 12,
     fontWeight: FontWeight.w600,
     color: AppColors.textPrimary,
+    letterSpacing: 0,
     leadingDistribution: TextLeadingDistribution.even,
   );
 
@@ -306,6 +329,7 @@ abstract final class AppTextStyles {
     fontSize: 12,
     height: 18 / 12,
     color: AppColors.textSecondary,
+    letterSpacing: 0,
     leadingDistribution: TextLeadingDistribution.even,
   );
 }

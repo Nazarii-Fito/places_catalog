@@ -50,9 +50,6 @@ abstract final class AppColors {
   /// Sheet drag handle (#C1C6D7 at 60 %).
   static const Color handle = Color(0x99C1C6D7);
 
-  /// Separator above the "Add tag" input (#E9E7ED at 60 %).
-  static const Color tagDivider = Color(0x99E9E7ED);
-
   // Semantic accents
   static const Color destructive = Color(0xFFBA1A1A);
 

@@ -6,6 +6,8 @@ import 'package:places_catalog/data/mock/mock_places.dart';
 import 'package:places_catalog/features/auth/screens/login_screen.dart';
 import 'package:places_catalog/features/auth/screens/register_screen.dart';
 import 'package:places_catalog/features/home/screens/home_screen.dart';
+import 'package:places_catalog/features/places/screens/add_place_screen.dart';
+import 'package:places_catalog/features/places/widgets/details_sections.dart';
 import 'package:places_catalog/features/places/screens/place_details_screen.dart';
 import 'package:places_catalog/features/shell/main_shell.dart';
 
@@ -215,5 +217,44 @@ void main() {
     await tester.tap(find.text('Add'));
     await tester.pumpAndSettle();
     expect(find.text('#Brunch'), findsOneWidget);
+  });
+
+  testWidgets('Notes box keeps its size when switching to Edit', (
+    WidgetTester tester,
+  ) async {
+    useIPhone(tester, size: const Size(390, 2000));
+    await tester.pumpWidget(testApp(const MainShell()));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('The Daily Grind'));
+    await tester.pumpAndSettle();
+
+    final Finder box = find.descendant(
+      of: find.byType(NotesSection),
+      matching: find.byType(Container),
+    );
+    final Rect before = tester.getRect(box.first);
+    await tester.tap(find.text('Edit'));
+    await tester.pumpAndSettle();
+    expect(tester.getRect(box.first), before);
+  });
+
+  testWidgets('Add Place uses the same tag control (dialog + remove)', (
+    WidgetTester tester,
+  ) async {
+    useIPhone(tester, size: const Size(390, 2000));
+    await tester.pumpWidget(testApp(const AddPlaceScreen()));
+    await tester.pumpAndSettle();
+    expect(find.text('#Espresso'), findsOneWidget);
+
+    await tester.tap(find.bySemanticsLabel('Remove tag #Espresso'));
+    await tester.pumpAndSettle();
+    expect(find.text('#Espresso'), findsNothing);
+
+    await tester.tap(find.text('Add Tag'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(EditableText).last, 'Rooftop');
+    await tester.tap(find.text('Add'));
+    await tester.pumpAndSettle();
+    expect(find.text('#Rooftop'), findsOneWidget);
   });
 }
