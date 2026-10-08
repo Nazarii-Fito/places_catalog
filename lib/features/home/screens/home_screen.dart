@@ -10,6 +10,7 @@ import '../../../core/widgets/place_card.dart';
 import '../../../core/widgets/search_field.dart';
 import '../../../data/models/place.dart';
 import '../home_filter.dart';
+import '../home_sort.dart';
 import '../widgets/catalog_summary_strip.dart';
 import '../widgets/home_title_row.dart';
 
@@ -38,6 +39,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _searchController = TextEditingController();
   HomeFilter _filter = HomeFilter.all;
+  HomeSort _sort = HomeSort.recent;
   String _query = '';
 
   @override
@@ -57,10 +59,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final List<Place> visible = widget.places
-        .where(_filter.matches)
-        .where(_matchesQuery)
-        .toList();
+    // A new list is filtered and sorted — widget.places stays untouched.
+    final List<Place> visible =
+        widget.places.where(_filter.matches).where(_matchesQuery).toList()
+          ..sort(_sort.compare);
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: const AppNavHeader(title: AppStrings.tabHome),
@@ -107,7 +109,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const SizedBox(height: AppSpacing.m),
-              _Padded(child: CatalogSummaryStrip(count: visible.length)),
+              _Padded(
+                child: CatalogSummaryStrip(
+                  count: visible.length,
+                  sort: _sort,
+                  onSortSelected: (HomeSort sort) =>
+                      setState(() => _sort = sort),
+                ),
+              ),
               const SizedBox(height: AppSpacing.m),
               if (visible.isEmpty)
                 const EmptyState(
