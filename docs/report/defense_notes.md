@@ -63,6 +63,7 @@ Widget tree (конфігурація) → Element tree (життєвий цик
 - **`List` → віджети через `.map(...)`:** картки закладів у `HomeScreen` (`visible.map((place) => PlaceCard(...))`), зірки в `RatingStars`.
 - **Список записів:** плитки статистики в `ActivitySummaryCard` (`List<(String, int, String)>` → `StatTile`).
 - **`Map` → чипси:** у `FavoritesScreen` кількість обраних за категоріями (`Map<PlaceCategory, int>`, `counts.entries.map(...)`).
+- **`enum` → меню й чипси:** `HomeFilter.values` будує чипси, `HomeSort.values.map(...)` — пункти меню «Sorted by …» (`catalog_summary_strip.dart`).
 - **`Map` → рядки форми:** рейтинги в `AddPlaceScreen` (`Map<String, int>` → рядки зі зірками).
 - **`for` у колекції:** `[for (final p in _places) ...]` у `MainShell._toggleFavorite`.
 
@@ -75,7 +76,7 @@ Widget tree (конфігурація) → Element tree (життєвий цик
 Помилка «null у тексті» стає помилкою компіляції, а не падінням застосунку.
 
 **14′. Яке призначення мають віджети Row та Column?**
-Розташування дочірніх віджетів горизонтально (`Row`) і вертикально (`Column`) з вирівнюванням по головній і поперечній осях та гнучкими розмірами (`Expanded`, `Flexible`). У `PlaceCard` `Row` ставить мініатюру поруч із `Column`, де назва, підзаголовок і рядок рейтингу.
+Розташування дочірніх віджетів горизонтально (`Row`) і вертикально (`Column`) з вирівнюванням по головній і поперечній осях та гнучкими розмірами (`Expanded`, `Flexible`). У `PlaceCard` `Row` ставить мініатюру поруч із `Column`, де назва, підзаголовок і рядок рейтингу. В `AuthPage` `Column` з `MainAxisAlignment.spaceBetween` притискає legal-текст до низу екрана.
 
 **15′. Чим Stack відрізняється від Row і Column?**
 `Stack` накладає дочірні віджети один на одного по осі Z, а не розміщує їх поряд; позицію задає `Positioned`. Приклади:
@@ -98,7 +99,7 @@ Widget tree (конфігурація) → Element tree (життєвий цик
 
 **20′. Що відбувається під час push() і pop()?**
 - **`push` / `pushNamed`** додає маршрут на вершину стеку з анімацією переходу (Login → Register, Profile → Change Password).
-- **`pop`** знімає верхній маршрут і може повернути результат: `LocationPickerScreen` закривається через `Navigator.pop(address)`, і `AddPlaceScreen` отримує адресу з `await pushNamed(...)`.
+- **`pop`** знімає верхній маршрут і може повернути результат: `LocationPickerScreen` закривається через `Navigator.pop(address)`, і `AddPlaceScreen` отримує адресу з `await pushNamed(...)`; так само `EditProfileScreen` повертає відредагованого `User`, а `ProfileScreen` оновлює стан (`_editProfile`).
 - **`pushNamedAndRemoveUntil`** очищає стек: після входу не можна повернутись на Login, після виходу — на Home.
 
 **21′. Яке призначення MaterialPageRoute під час переходу між екранами?**

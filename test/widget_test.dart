@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:places_catalog/app/app.dart';
 import 'package:places_catalog/core/widgets/place_card.dart';
 import 'package:places_catalog/data/mock/mock_places.dart';
+import 'package:places_catalog/features/auth/screens/login_screen.dart';
+import 'package:places_catalog/features/auth/screens/register_screen.dart';
 import 'package:places_catalog/features/home/screens/home_screen.dart';
 import 'package:places_catalog/features/places/screens/place_details_screen.dart';
 import 'package:places_catalog/features/shell/main_shell.dart';
@@ -127,5 +129,91 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(PlaceDetailsScreen), findsNothing);
     expect(find.text('Kurobuta Ramen'), findsNothing);
+  });
+
+  for (final (String name, Widget screen) in [
+    ('Login', const LoginScreen()),
+    ('Create Account', const RegisterScreen()),
+  ]) {
+    testWidgets('$name fits iPhone 17 without scrolling', (
+      WidgetTester tester,
+    ) async {
+      useIPhone17(tester);
+      await tester.pumpWidget(testApp(screen));
+      await tester.pumpAndSettle();
+      expect(maxScrollExtent(tester), 0);
+    });
+  }
+
+  testWidgets('Sort menu reorders Home cards', (WidgetTester tester) async {
+    useIPhone(tester, size: const Size(390, 1400));
+    await tester.pumpWidget(
+      testApp(
+        HomeScreen(
+          places: mockPlaces,
+          onToggleFavorite: (_) {},
+          onOpenPlace: (_) {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    String firstCard() =>
+        tester.widget<PlaceCard>(find.byType(PlaceCard).first).place.name;
+    expect(firstCard(), 'The Daily Grind');
+
+    await tester.tap(find.text('Sorted by Recent'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Name'));
+    await tester.pumpAndSettle();
+    expect(find.text('Sorted by Name'), findsOneWidget);
+    expect(firstCard(), 'Atelier Pastel Cafe');
+  });
+
+  testWidgets('Pencil opens Edit Profile; saved name shows on Profile', (
+    WidgetTester tester,
+  ) async {
+    useIPhone(tester, size: const Size(390, 1400));
+    await tester.pumpWidget(testApp(const MainShell()));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Profile').last);
+    await tester.pumpAndSettle();
+    expect(find.text('App Settings'), findsNothing);
+    expect(find.textContaining('iCloud'), findsNothing);
+
+    await tester.tap(find.bySemanticsLabel('Edit profile'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(EditableText).first, 'Nazar Fito');
+    await tester.tap(find.text('Save Changes'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+    expect(find.text('Nazar Fito'), findsOneWidget);
+  });
+
+  testWidgets('Notes can be edited and a tag added on Place Details', (
+    WidgetTester tester,
+  ) async {
+    useIPhone(tester, size: const Size(390, 2000));
+    await tester.pumpWidget(testApp(const MainShell()));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('The Daily Grind'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Edit'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byType(EditableText).first,
+      'Great flat white.',
+    );
+    await tester.tap(find.text('Done'));
+    await tester.pumpAndSettle();
+    expect(find.text('Great flat white.'), findsOneWidget);
+
+    await tester.tap(find.text('Add Tag'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(EditableText).last, 'Brunch');
+    await tester.tap(find.text('Add'));
+    await tester.pumpAndSettle();
+    expect(find.text('#Brunch'), findsOneWidget);
   });
 }

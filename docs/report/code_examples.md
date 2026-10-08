@@ -6,7 +6,7 @@
 
 Файл: `lib/features/auth/screens/login_screen.dart`.
 
-Бізнес-логіки немає: кнопка «Log In» і кнопки Apple / Google просто відкривають головний екран. `pushNamedAndRemoveUntil` очищає стек, тож повернутися «назад» на екран входу не можна.
+Бізнес-логіки немає: кнопка «Log In» і кнопки Apple / Google просто відкривають головний екран. `pushNamedAndRemoveUntil` очищає стек, тож повернутися «назад» на екран входу не можна. Спільна обгортка `AuthPage` (`lib/features/auth/widgets/auth_page.dart`) розтягує форму на весь екран і притискає `footer` донизу: на iPhone 17 екран вміщається без скролу.
 
 ```dart
 class LoginScreen extends StatefulWidget {
@@ -37,52 +37,48 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: GestureDetector(
-        onTap: () => FocusScope.of(context).unfocus(), // hide keyboard
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(16, 32, 16, 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const AuthHeader(
-                  title: AppStrings.appName,
-                  subtitle: TextSpan(text: AppStrings.tagline),
-                ),
-                const SizedBox(height: 40.5),
-                AppTextField(
-                  label: AppStrings.emailLabel,
-                  hintText: AppStrings.emailHint,
-                  prefixIcon: AppAssets.iconMail,
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  textInputAction: TextInputAction.next,
-                ),
-                const SizedBox(height: AppSpacing.l),
-                AppTextField(
-                  label: AppStrings.passwordLabel,
-                  hintText: AppStrings.passwordHint,
-                  prefixIcon: AppAssets.iconLock,
-                  controller: _passwordController,
-                  isPassword: true, // "eye" toggles obscureText via setState
-                  textInputAction: TextInputAction.done,
-                  onSubmitted: (_) => _openHome(),
-                ),
-                // ... "Forgot Password?" -> pushNamed(AppRoutes.forgotPassword)
-                PrimaryButton(label: AppStrings.logIn, onPressed: _openHome),
-                const SizedBox(height: AppSpacing.m),
-                SecondaryButton(
-                  label: AppStrings.createAccount,
-                  onPressed: () =>
-                      Navigator.of(context).pushNamed(AppRoutes.register),
-                ),
-                // ... divider "or continue with", Apple / Google, legal text
-              ],
-            ),
-          ),
+    return AuthPage(
+      form: [
+        const SizedBox(height: AppSpacing.m),
+        const AuthHeader(
+          title: AppStrings.appName,
+          subtitle: TextSpan(text: AppStrings.tagline),
         ),
-      ),
+        const SizedBox(height: 28),
+        AppTextField(
+          label: AppStrings.emailLabel,
+          hintText: AppStrings.emailHint,
+          prefixIcon: AppAssets.iconMail,
+          controller: _emailController,
+          keyboardType: TextInputType.emailAddress,
+          textInputAction: TextInputAction.next,
+        ),
+        const SizedBox(height: AppSpacing.l),
+        AppTextField(
+          label: AppStrings.passwordLabel,
+          hintText: AppStrings.passwordHint,
+          prefixIcon: AppAssets.iconLock,
+          controller: _passwordController,
+          isPassword: true, // "eye" toggles obscureText via setState
+          textInputAction: TextInputAction.done,
+          onSubmitted: (_) => _openHome(),
+        ),
+        // ... "Forgot Password?" -> pushNamed(AppRoutes.forgotPassword)
+        PrimaryButton(label: AppStrings.logIn, onPressed: _openHome),
+        const SizedBox(height: AppSpacing.m),
+        SecondaryButton(
+          label: AppStrings.createAccount,
+          onPressed: () => Navigator.of(context).pushNamed(AppRoutes.register),
+        ),
+        // ... divider "or continue with", Apple / Google buttons
+      ],
+      // Pinned to the bottom edge of the screen.
+      footer: const [
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: AppSpacing.l),
+          child: AuthLegalText(prefix: AppStrings.loginLegalPrefix),
+        ),
+      ],
     );
   }
 }
@@ -111,16 +107,16 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   HomeFilter _filter = HomeFilter.all; // selected chip (UI state)
+  HomeSort _sort = HomeSort.recent;    // "Sorted by …" menu (UI state)
   String _query = '';                  // search text (UI state)
   // ...
 
   @override
   Widget build(BuildContext context) {
     // build() only derives data from state — no side effects.
-    final List<Place> visible = widget.places
-        .where(_filter.matches)
-        .where(_matchesQuery)
-        .toList();
+    final List<Place> visible =
+        widget.places.where(_filter.matches).where(_matchesQuery).toList()
+          ..sort(_sort.compare);
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -149,7 +145,11 @@ class _HomeScreenState extends State<HomeScreen> {
               },
             ),
           ),
-          CatalogSummaryStrip(count: visible.length),
+          CatalogSummaryStrip(
+            count: visible.length,
+            sort: _sort,
+            onSortSelected: (HomeSort sort) => setState(() => _sort = sort),
+          ),
           if (visible.isEmpty)
             const EmptyState(
               title: AppStrings.emptyTitle,
@@ -175,7 +175,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
 ## 3. Перевикористовуваний віджет — `PrimaryButton` (вимога 5)
 
-Файл: `lib/core/widgets/primary_button.dart`. Використовується на Login, Register, Forgot Password, Change Password, Add Place і Location Picker.
+Файл: `lib/core/widgets/primary_button.dart`. Використовується на Login, Register, Forgot Password, Change Password, Edit Profile, Export Archive, Add Place і Location Picker.
 
 ```dart
 /// Filled blue confirm button — "Log In", "Create Account", "Save", ...

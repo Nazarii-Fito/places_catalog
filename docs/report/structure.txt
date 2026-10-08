@@ -40,7 +40,8 @@ lib/
 │       ├── section_label.dart
 │       ├── settings_tile.dart
 │       ├── social_auth_button.dart
-│       └── stat_tile.dart
+│       ├── stat_tile.dart
+│       └── user_avatar.dart
 ├── data/
 │   ├── mock/
 │   │   ├── mock_places.dart
@@ -60,6 +61,7 @@ lib/
 │   │   └── widgets/
 │   │       ├── auth_header.dart
 │   │       ├── auth_legal_text.dart
+│   │       ├── auth_page.dart
 │   │       ├── auth_switch_prompt.dart
 │   │       └── social_auth_row.dart
 │   ├── favorites/
@@ -71,7 +73,8 @@ lib/
 │   │   ├── widgets/
 │   │   │   ├── catalog_summary_strip.dart
 │   │   │   └── home_title_row.dart
-│   │   └── home_filter.dart
+│   │   ├── home_filter.dart
+│   │   └── home_sort.dart
 │   ├── places/
 │   │   ├── screens/
 │   │   │   ├── add_place_pickers.dart
@@ -79,6 +82,7 @@ lib/
 │   │   │   ├── location_picker_screen.dart
 │   │   │   └── place_details_screen.dart
 │   │   ├── widgets/
+│   │   │   ├── add_tag_dialog.dart
 │   │   │   ├── details_hero.dart
 │   │   │   ├── details_sections.dart
 │   │   │   ├── form_group.dart
@@ -90,6 +94,8 @@ lib/
 │   ├── profile/
 │   │   ├── screens/
 │   │   │   ├── change_password_screen.dart
+│   │   │   ├── edit_profile_screen.dart
+│   │   │   ├── export_archive_screen.dart
 │   │   │   └── profile_screen.dart
 │   │   └── widgets/
 │   │       ├── activity_summary_card.dart

@@ -21,12 +21,14 @@ void useIPhone(
   Size size = const Size(390, 844),
   double textScale = 1,
   double keyboard = 0,
+  double topInset = 47,
+  double bottomInset = 34,
 }) {
   const double dpr = 3;
   tester.view
     ..devicePixelRatio = dpr
     ..physicalSize = size * dpr
-    ..padding = const FakeViewPadding(top: 47 * dpr, bottom: 34 * dpr)
+    ..padding = FakeViewPadding(top: topInset * dpr, bottom: bottomInset * dpr)
     ..viewInsets = FakeViewPadding(bottom: keyboard * dpr);
   tester.platformDispatcher.textScaleFactorTestValue = textScale;
   addTearDown(tester.view.reset);
@@ -41,3 +43,13 @@ Widget testApp(Widget home) {
     onGenerateRoute: AppRoutes.onGenerateRoute,
   );
 }
+
+/// iPhone 17: 402 × 874 pt, Dynamic Island safe area 62 pt / home bar 34 pt.
+void useIPhone17(WidgetTester tester) =>
+    useIPhone(tester, size: const Size(402, 874), topInset: 62);
+
+/// How far the first scrollable on screen can scroll (0 = fits the screen).
+double maxScrollExtent(WidgetTester tester) => tester
+    .state<ScrollableState>(find.byType(Scrollable).first)
+    .position
+    .maxScrollExtent;

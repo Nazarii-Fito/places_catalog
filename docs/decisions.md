@@ -5,7 +5,7 @@
 ## Узгоджено з автором
 | # | Питання | Рішення |
 |---|---|---|
-| 1 | Profile у Figma не має групи ACCOUNT SETTINGS, пілюлі «Apple ID», футера «Version»; Home — футера iCloud, бейджів на мініатюрах | Верстаємо як у Figma. Додаємо лише групу ACCOUNT SETTINGS (Change Password / App Settings / iCloud Sync «Active») у стилі DATA & PRIVACY, бо вона потрібна для вимоги 3.2 |
+| 1 | Profile у Figma не має групи ACCOUNT SETTINGS, пілюлі «Apple ID», футера «Version»; Home — футера iCloud, бейджів на мініатюрах | Верстаємо як у Figma. Додаємо лише групу ACCOUNT SETTINGS з пунктом Change Password у стилі DATA & PRIVACY, бо він потрібен для вимоги 3.2 (App Settings та iCloud Sync прибрано 08.10, див. нижче) |
 | 2 | Немає дизайну Forgot Password і Change Password | Домальовано у Figma з наявних шарів: фрейми `26:14`, `27:14`, `27:63` |
 | 3 | Login і Registration по-різному стилізують ті самі елементи | Уніфіковано за Login (див. нижче) |
 
@@ -37,8 +37,28 @@
 - **Стан каталогу піднято в `MainShell`** (lifting state up): Home і Favorites отримують `List<Place>` параметром і повідомляють про зміни колбеками. Тому Favorites завжди показує фактично обрані на Home заклади: Daily Grind, MOMA, Atelier. У Figma Favorites там Osteria, хоча на Home у неї порожнє сердечко, тож дизайн тут суперечить сам собі.
 - **Atelier Pastel Cafe** з фрейму Favorites додано в mock-дані з датою 02.11.2022, щоб не змінювати порядок карток Home («Sorted by Recent»).
 - **Favorites:** пошук і чипси уніфіковано за Home (40 pt, текст 13), тоді як у Figma Favorites 36 pt і 15. Картка Favorites — варіант `PlaceCard.favorites`, точно за Figma (відступ 12, мініатюра 88, одна зірка).
-- **Place Details:** у Figma дві кнопки «назад» (у шапці й на фото). Це надлишково з погляду HIG, але зверстано як у дизайні. Рейтинг береться з даних (5.0, як на Home), а не 4.9 з фрейму.
+- **Place Details:** у Figma дві кнопки «назад» (у шапці й на фото); кругла кнопка на фото прибрана 08.10, лишилась лише кнопка в шапці. Рейтинг береться з даних (5.0, як на Home), а не 4.9 з фрейму.
 - **Place Details отримує дані через `RouteSettings.arguments`** (`PlaceDetailsArgs`). Location Picker повертає адресу через `Navigator.pop(result)` і відкривається як `fullscreenDialog` (знизу, з «Cancel»).
 - **Location Picker:** нижня картка стоїть над home indicator (Safe Area), а в Figma — за 16 pt від краю фрейму. Кнопка Confirm уніфікована з `PrimaryButton` (радіус 12 замість 16).
 - **HIG:** зірки на Add Place (32 pt) і хрестики видалення фото й тегів менші за 44 pt — так у дизайні.
 - **Мапи** — статичні зображення з Figma (`map_soho.png`, `map_manhattan.jpg`) низької роздільності (512 px), тож на @3x вони трохи розмиті.
+
+## Правки після рев'ю (08.10.2026)
+- **Profile:**
+  - пункти App Settings та iCloud Sync & Backup прибрано (у вимогах FR2 їх немає); iCloud більше ніде не згадується, крім прикладу адреси `name@icloud.com` у полях email;
+  - олівець біля аватара відкриває новий екран **Edit Profile** (ім'я, email, фото: «Remove Photo» / «Use Default Photo»). Результат повертається через `Navigator.pop(user)`, і `ProfileScreen` (тепер `StatefulWidget`) показує оновлені дані. Без фото аватар показує ініціали (`UserAvatar`);
+  - **Export Places Archive** (FR2) відкриває екран із JSON-архівом поточного каталогу (`dart:convert`), розміром файлу й кнопкою «Copy JSON» (буфер обміну). Справжнього файлу й бекенду немає.
+  - Екранів Edit Profile і Export у Figma немає, тож вони зверстані в тій самій візуальній мові, що й Change Password.
+- **Favorites:** кнопку **Edit** прибрано. В iOS вона вмикає режим масового видалення, але сердечко на кожній картці вже прибирає заклад з обраного, тож режим лише дублював би цю дію.
+- **Place Details:**
+  - «Edit» біля нотаток перемикає блок у текстове поле, а «Done» зберігає текст і оновлює час «Updated»;
+  - «+ Add Tag» відкриває `CupertinoAlertDialog` із полем вводу;
+  - зміни повертаються в `MainShell` через колбек `onUpdate`, тож зберігаються після виходу з екрана;
+  - «Open in Apple Maps» лишається неактивним: для нього потрібен плагін `url_launcher`.
+- **Home:** «Sorted by …» — випадне меню (`MenuAnchor`) з варіантами Recent / Oldest / Rating / Name; сортування описане `enum HomeSort` з компаратором, як фільтри в `HomeFilter`.
+- **Login і Register без скролу на iPhone 17** (402 × 874 pt, корисна висота ≈778 pt):
+  - відступи стиснуто відносно Figma: Login приблизно на 95 pt, Register приблизно на 90 pt (поля 10 замість 16, блок «or continue with» 14/14, логотип–заголовок 16);
+  - legal-текст і «Already have an account?» притиснуто до низу екрана через `AuthPage`;
+  - на менших екранах, з текстом 120 % або з відкритою клавіатурою сторінка скролиться, а не переповнюється;
+  - перевірено тестами: `maxScrollExtent == 0` на iPhone 17 для обох екранів.
+- **Застарілі порівняння:** склейки в `docs/compare/` для Login, Register, Favorites і Place Details зроблено до цих правок. Актуальні скриншоти — у `docs/report/screenshots/` (iPhone 17).

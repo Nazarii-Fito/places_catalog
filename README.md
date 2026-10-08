@@ -17,9 +17,9 @@
 | Етап 1 | Етап 2 |
 |---|---|
 | Login, Create Account, Forgot Password (зі станом «Check your email») | Favorites |
-| Home (пошук, фільтри, список закладів) | Place Details + підтвердження видалення |
-| Profile (статистика, налаштування, вихід) | Add Place |
-| Change Password | Location Picker |
+| Home (пошук, фільтри, сортування, список закладів) | Place Details (редагування нотаток, теги) + підтвердження видалення |
+| Profile (статистика, зміна пароля, експорт, вихід) | Add Place |
+| Change Password, Edit Profile, Export Archive (JSON) | Location Picker |
 
 Навігація між вкладками — нижній Tab Bar (Home / Favorites / Profile).
 
