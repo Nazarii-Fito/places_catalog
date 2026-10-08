@@ -1,4 +1,4 @@
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_assets.dart';
 import '../../../core/constants/app_strings.dart';
@@ -11,22 +11,51 @@ import '../../../core/widgets/app_svg_icon.dart';
 import '../../../core/widgets/pressable_opacity.dart';
 import '../../../core/utils/date_formatter.dart';
 
-/// "My Notes & Impressions" header with Edit and the note box.
-class NotesSection extends StatelessWidget {
+/// "My Notes & Impressions": read-only note with an Edit button that
+/// switches the box into a text field; "Done" hands the text to [onSave].
+///
+/// Whether the note is being edited is local UI state of this widget.
+class NotesSection extends StatefulWidget {
   const NotesSection({
     super.key,
     required this.note,
     required this.updatedAt,
-    required this.onEdit,
+    required this.onSave,
   });
 
   final String note;
   final DateTime? updatedAt;
-  final VoidCallback onEdit;
+  final ValueChanged<String> onSave;
+
+  @override
+  State<NotesSection> createState() => _NotesSectionState();
+}
+
+class _NotesSectionState extends State<NotesSection> {
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.note,
+  );
+  bool _editing = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _toggle() {
+    if (_editing) {
+      FocusScope.of(context).unfocus();
+      widget.onSave(_controller.text.trim());
+    } else {
+      _controller.text = widget.note;
+    }
+    setState(() => _editing = !_editing);
+  }
 
   @override
   Widget build(BuildContext context) {
-    final DateTime? updated = updatedAt;
+    final DateTime? updated = widget.updatedAt;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       spacing: AppSpacing.sm,
@@ -37,18 +66,19 @@ class NotesSection extends StatelessWidget {
               child: Text(AppStrings.notesTitle, style: AppTextStyles.headline),
             ),
             PressableOpacity(
-              onTap: onEdit,
+              onTap: _toggle,
               child: Row(
                 spacing: AppSpacing.s,
                 children: [
-                  const AppSvgIcon(
-                    AppAssets.iconPencil,
-                    width: 11.25,
-                    height: 11.25,
-                    color: AppColors.primary,
-                  ),
+                  if (!_editing)
+                    const AppSvgIcon(
+                      AppAssets.iconPencil,
+                      width: 11.25,
+                      height: 11.25,
+                      color: AppColors.primary,
+                    ),
                   Text(
-                    AppStrings.edit,
+                    _editing ? AppStrings.done : AppStrings.edit,
                     style: AppTextStyles.footnoteSemibold.copyWith(
                       color: AppColors.primary,
                     ),
@@ -60,18 +90,35 @@ class NotesSection extends StatelessWidget {
         ),
         Container(
           padding: const EdgeInsets.all(AppSpacing.ml),
-          decoration: const BoxDecoration(
-            color: AppColors.surfaceContainerLowTranslucent,
+          decoration: BoxDecoration(
+            color: _editing
+                ? AppColors.surface
+                : AppColors.surfaceContainerLowTranslucent,
             borderRadius: AppRadii.mdAll,
+            border: Border.all(
+              color: _editing ? AppColors.primary : AppColors.transparent,
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                note.isEmpty ? AppStrings.noNotes : note,
-                style: AppTextStyles.noteBody,
-              ),
-              if (updated != null) ...[
+              if (_editing)
+                TextField(
+                  controller: _controller,
+                  autofocus: true,
+                  minLines: 3,
+                  maxLines: null,
+                  style: AppTextStyles.noteBody,
+                  decoration: const InputDecoration.collapsed(
+                    hintText: AppStrings.notesHint,
+                  ),
+                )
+              else
+                Text(
+                  widget.note.isEmpty ? AppStrings.noNotes : widget.note,
+                  style: AppTextStyles.noteBody,
+                ),
+              if (updated != null && !_editing) ...[
                 const SizedBox(height: 18),
                 Text(
                   AppStrings.updatedPrefix + formatDateTime(updated),

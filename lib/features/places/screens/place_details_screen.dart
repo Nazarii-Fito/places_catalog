@@ -17,6 +17,7 @@ import '../../../data/models/place.dart';
 import '../../../data/models/place_category.dart';
 import '../../../data/models/review.dart';
 import '../place_details_args.dart';
+import '../widgets/add_tag_dialog.dart';
 import '../widgets/details_hero.dart';
 import '../widgets/details_sections.dart';
 import '../widgets/rating_summary_card.dart';
@@ -56,9 +57,24 @@ class _PlaceDetailsScreenState extends State<PlaceDetailsScreen> {
     navigator.pop();
   }
 
-  // Editing notes/tags and opening Apple Maps are outside Lab 3 (no
-  // business logic); the controls are shown as designed but inert.
-  void _notImplemented() {}
+  /// Replaces the review with an edited copy and reports it to MainShell.
+  void _updateReview(Review review) {
+    setState(() => _place = _place.copyWith(review: review));
+    widget.args.onUpdate(_place);
+  }
+
+  void _saveNote(Review review, String text) =>
+      _updateReview(review.copyWith(textNote: text, updatedAt: DateTime.now()));
+
+  Future<void> _addTag(Review review) async {
+    final String? tag = await showAddTagDialog(context);
+    if (tag == null || review.tags.contains(tag)) return;
+    _updateReview(review.copyWith(tags: [...review.tags, tag]));
+  }
+
+  // Opening Apple Maps needs a platform plugin (url_launcher), which is out
+  // of Lab 3 scope; the link is shown as designed but inert.
+  void _openMaps() {}
 
   @override
   Widget build(BuildContext context) {
@@ -79,7 +95,6 @@ class _PlaceDetailsScreenState extends State<PlaceDetailsScreen> {
                 image: _place.heroImage,
                 photosCount: _place.photosCount,
                 isFavorite: _place.isFavorite,
-                onBack: () => Navigator.of(context).maybePop(),
                 onToggleFavorite: _toggleFavorite,
               ),
               // The sheet overlaps the photo by 24 pt, like in Figma.
@@ -96,15 +111,18 @@ class _PlaceDetailsScreenState extends State<PlaceDetailsScreen> {
                       NotesSection(
                         note: review.textNote,
                         updatedAt: review.updatedAt,
-                        onEdit: _notImplemented,
+                        onSave: (String text) => _saveNote(review, text),
                       ),
                       const SizedBox(height: AppSpacing.l),
-                      TagsSection(tags: review.tags, onAddTag: _notImplemented),
+                      TagsSection(
+                        tags: review.tags,
+                        onAddTag: () => _addTag(review),
+                      ),
                     ],
                     const SizedBox(height: 28),
                     LocationSection(
                       label: _shortAddress(_place.address),
-                      onOpenMaps: _notImplemented,
+                      onOpenMaps: _openMaps,
                     ),
                     const SizedBox(height: 28),
                     _DeleteButton(onPressed: _confirmDelete),

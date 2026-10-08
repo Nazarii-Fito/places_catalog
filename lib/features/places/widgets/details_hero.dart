@@ -11,22 +11,21 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/app_svg_icon.dart';
 import '../../../core/widgets/pressable_opacity.dart';
 
-/// 260 pt cover photo with a dark gradient, round back / favourite buttons
-/// and the "4 Photos" counter — all layered with a [Stack].
+/// 260 pt cover photo with a dark gradient, a round favourite button and
+/// the "4 Photos" counter — all layered with a [Stack]. Back navigation
+/// lives only in the header, so there is a single back button.
 class DetailsHero extends StatelessWidget {
   const DetailsHero({
     super.key,
     required this.image,
     required this.photosCount,
     required this.isFavorite,
-    required this.onBack,
     required this.onToggleFavorite,
   });
 
   final String image;
   final int photosCount;
   final bool isFavorite;
-  final VoidCallback onBack;
   final VoidCallback onToggleFavorite;
 
   @override
@@ -52,38 +51,22 @@ class DetailsHero extends StatelessWidget {
           ),
           Positioned(
             top: AppSpacing.m,
-            left: AppSpacing.l,
             right: AppSpacing.l,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _GlassCircleButton(
-                  label: AppStrings.back,
-                  onTap: onBack,
-                  child: const AppSvgIcon(
-                    AppAssets.iconChevronLeft,
-                    width: 9.813,
-                    height: 16.667,
-                    color: AppColors.onPrimary,
-                  ),
-                ),
-                _GlassCircleButton(
-                  label: AppStrings.toggleFavorite,
-                  onTap: onToggleFavorite,
-                  child: isFavorite
-                      ? const AppSvgIcon(
-                          AppAssets.iconHeartFilled,
-                          width: 18.333,
-                          height: 16.821,
-                        )
-                      : const AppSvgIcon(
-                          AppAssets.iconHeartOutline,
-                          width: 18.333,
-                          height: 16.821,
-                          color: AppColors.onPrimary,
-                        ),
-                ),
-              ],
+            child: _GlassCircleButton(
+              label: AppStrings.toggleFavorite,
+              onTap: onToggleFavorite,
+              child: isFavorite
+                  ? const AppSvgIcon(
+                      AppAssets.iconHeartFilled,
+                      width: 18.333,
+                      height: 16.821,
+                    )
+                  : const AppSvgIcon(
+                      AppAssets.iconHeartOutline,
+                      width: 18.333,
+                      height: 16.821,
+                      color: AppColors.onPrimary,
+                    ),
             ),
           ),
           if (photosCount > 0)
