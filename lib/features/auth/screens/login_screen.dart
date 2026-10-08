@@ -12,6 +12,7 @@ import '../../../core/widgets/secondary_button.dart';
 import '../../../core/widgets/social_auth_button.dart';
 import '../widgets/auth_header.dart';
 import '../widgets/auth_legal_text.dart';
+import '../widgets/auth_page.dart';
 import '../widgets/social_auth_row.dart';
 
 /// Sign-in screen (FR1). No business logic: "Log In" and the social
@@ -46,84 +47,69 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: GestureDetector(
-        // Tap on empty space hides the keyboard.
-        onTap: () => FocusScope.of(context).unfocus(),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.screen,
-              AppSpacing.xxl,
-              AppSpacing.screen,
-              AppSpacing.xl,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const AuthHeader(
-                  title: AppStrings.appName,
-                  subtitle: TextSpan(text: AppStrings.tagline),
-                ),
-                const SizedBox(height: 40.5),
-                AppTextField(
-                  label: AppStrings.emailLabel,
-                  hintText: AppStrings.emailHint,
-                  prefixIcon: AppAssets.iconMail,
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  textInputAction: TextInputAction.next,
-                  autofillHints: const [AutofillHints.email],
-                ),
-                const SizedBox(height: AppSpacing.l),
-                AppTextField(
-                  label: AppStrings.passwordLabel,
-                  hintText: AppStrings.passwordHint,
-                  prefixIcon: AppAssets.iconLock,
-                  controller: _passwordController,
-                  isPassword: true,
-                  textInputAction: TextInputAction.done,
-                  onSubmitted: (_) => _openHome(),
-                  autofillHints: const [AutofillHints.password],
-                ),
-                const SizedBox(height: AppSpacing.l + AppSpacing.xs),
-                Padding(
-                  padding: const EdgeInsets.only(right: AppSpacing.xs),
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: AppTextLink(
-                      label: AppStrings.forgotPassword,
-                      onTap: () =>
-                          Navigator.of(context)
-                              .pushNamed(AppRoutes.forgotPassword),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.l + AppSpacing.sm),
-                PrimaryButton(label: AppStrings.logIn, onPressed: _openHome),
-                const SizedBox(height: AppSpacing.m),
-                SecondaryButton(
-                  label: AppStrings.createAccount,
-                  onPressed: () =>
-                      Navigator.of(context).pushNamed(AppRoutes.register),
-                ),
-                const SizedBox(height: AppSpacing.xl),
-                const DividerWithText(text: AppStrings.orContinueWith),
-                const SizedBox(height: AppSpacing.xl),
-                SocialAuthRow(
-                  onProviderSelected: (SocialProvider _) => _openHome(),
-                ),
-                const SizedBox(height: AppSpacing.xxl),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: AppSpacing.l),
-                  child: AuthLegalText(prefix: AppStrings.loginLegalPrefix),
-                ),
-              ],
+    // Gaps are tighter than in Figma so the whole form fits an iPhone 17
+    // screen without scrolling (see docs/decisions.md).
+    return AuthPage(
+      form: [
+        const SizedBox(height: AppSpacing.m),
+        const AuthHeader(
+          title: AppStrings.appName,
+          subtitle: TextSpan(text: AppStrings.tagline),
+        ),
+        const SizedBox(height: 28),
+        AppTextField(
+          label: AppStrings.emailLabel,
+          hintText: AppStrings.emailHint,
+          prefixIcon: AppAssets.iconMail,
+          controller: _emailController,
+          keyboardType: TextInputType.emailAddress,
+          textInputAction: TextInputAction.next,
+          autofillHints: const [AutofillHints.email],
+        ),
+        const SizedBox(height: AppSpacing.l),
+        AppTextField(
+          label: AppStrings.passwordLabel,
+          hintText: AppStrings.passwordHint,
+          prefixIcon: AppAssets.iconLock,
+          controller: _passwordController,
+          isPassword: true,
+          textInputAction: TextInputAction.done,
+          onSubmitted: (_) => _openHome(),
+          autofillHints: const [AutofillHints.password],
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Padding(
+          padding: const EdgeInsets.only(right: AppSpacing.xs),
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: AppTextLink(
+              label: AppStrings.forgotPassword,
+              onTap: () =>
+                  Navigator.of(context).pushNamed(AppRoutes.forgotPassword),
             ),
           ),
         ),
-      ),
+        const SizedBox(height: AppSpacing.sm),
+        PrimaryButton(label: AppStrings.logIn, onPressed: _openHome),
+        const SizedBox(height: AppSpacing.m),
+        SecondaryButton(
+          label: AppStrings.createAccount,
+          onPressed: () => Navigator.of(context).pushNamed(AppRoutes.register),
+        ),
+        const SizedBox(height: 20),
+        const DividerWithText(text: AppStrings.orContinueWith),
+        const SizedBox(height: 20),
+        SocialAuthRow(onProviderSelected: (SocialProvider _) => _openHome()),
+      ],
+      // Pinned to the bottom edge of the screen.
+      footer: const [
+        SizedBox(height: AppSpacing.l),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: AppSpacing.l),
+          child: AuthLegalText(prefix: AppStrings.loginLegalPrefix),
+        ),
+        SizedBox(height: AppSpacing.sm),
+      ],
     );
   }
 }

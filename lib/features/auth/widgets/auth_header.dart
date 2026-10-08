@@ -15,6 +15,7 @@ class AuthHeader extends StatelessWidget {
     required this.title,
     required this.subtitle,
     this.icon = const AppLogo.large(),
+    this.iconGap = 20,
   });
 
   final String title;
@@ -22,6 +23,10 @@ class AuthHeader extends StatelessWidget {
   /// Either a plain [String] or rich text via [InlineSpan].
   final InlineSpan subtitle;
   final Widget icon;
+
+  /// Space between the icon and the title (20 in Figma; tighter on
+  /// Create Account so the form fits one screen).
+  final double iconGap;
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +38,7 @@ class AuthHeader extends StatelessWidget {
         Column(
           children: [
             icon,
-            const SizedBox(height: 20),
+            SizedBox(height: iconGap),
             Text(
               title,
               style: AppTextStyles.largeTitle,
