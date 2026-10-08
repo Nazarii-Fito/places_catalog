@@ -4,7 +4,6 @@ import '../../../core/constants/app_strings.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/app_nav_header.dart';
-import '../../../core/widgets/app_text_link.dart';
 import '../../../core/widgets/category_chip.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/place_card.dart';
@@ -58,10 +57,6 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     return q.isEmpty || place.name.toLowerCase().contains(q);
   }
 
-  // Bulk editing of favourites is out of Lab 3 scope; the button is shown
-  // as in the design but has no action yet.
-  void _onEdit() {}
-
   @override
   Widget build(BuildContext context) {
     final List<Place> favorites = widget.places
@@ -90,21 +85,18 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
               bottom: insets.bottom + 20,
             ),
             children: [
-              _Padded(
-                child: Row(
-                  children: [
-                    const Expanded(
-                      child: Text(
-                        AppStrings.favoritesTitle,
-                        style: AppTextStyles.title1,
-                      ),
+              // No "Edit" button: the heart on each card already removes a
+              // place from favourites, so a bulk-edit mode would duplicate it.
+              const _Padded(
+                child: SizedBox(
+                  height: AppSpacing.minTapTarget,
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      AppStrings.favoritesTitle,
+                      style: AppTextStyles.title1,
                     ),
-                    AppTextLink(
-                      label: AppStrings.edit,
-                      onTap: _onEdit,
-                      style: AppTextStyles.socialLabel,
-                    ),
-                  ],
+                  ),
                 ),
               ),
               const SizedBox(height: AppSpacing.s),
