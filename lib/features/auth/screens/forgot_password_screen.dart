@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 
+import '../../../app/app_scope.dart';
 import '../../../core/constants/app_assets.dart';
 import '../../../core/constants/app_strings.dart';
+import '../../../core/errors/auth_failure.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/validation/validators.dart';
 import '../../../core/widgets/app_svg_icon.dart';
 import '../../../core/widgets/app_text_field.dart';
+import '../../../core/widgets/error_banner.dart';
 import '../../../core/widgets/nav_back_button.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../widgets/auth_header.dart';
@@ -17,7 +21,8 @@ import '../widgets/auth_switch_prompt.dart';
 /// Two UI states of one [StatefulWidget]: the e-mail form and the
 /// "Check your email" confirmation. `setState` flips [_linkSent] and
 /// `build` describes the screen for the current value — `UI = f(state)`.
-/// Nothing is actually sent.
+/// The link is sent by Firebase (`sendPasswordResetEmail`); the text is
+/// neutral because email-enumeration protection hides unknown addresses.
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
 
@@ -26,8 +31,12 @@ class ForgotPasswordScreen extends StatefulWidget {
 }
 
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _emailController = TextEditingController();
+  AutovalidateMode _autovalidate = AutovalidateMode.disabled;
   bool _linkSent = false;
+  bool _submitting = false;
+  String? _error;
 
   @override
   void dispose() {
@@ -35,9 +44,28 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     super.dispose();
   }
 
-  void _sendLink() {
+  Future<void> _sendLink() async {
+    if (_submitting) return;
     FocusScope.of(context).unfocus();
-    setState(() => _linkSent = true);
+    setState(() => _autovalidate = AutovalidateMode.onUserInteraction);
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    final AppScope scope = AppScope.of(context);
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+    try {
+      await scope.auth.sendPasswordResetEmail(
+        email: _emailController.text.trim(),
+      );
+      await scope.analytics.logPasswordResetRequested();
+      if (mounted) setState(() => _linkSent = true);
+    } on AuthFailure catch (failure) {
+      if (mounted) setState(() => _error = failure.message);
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
   }
 
   void _showForm() => setState(() => _linkSent = false);
@@ -85,6 +113,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         )
                       : _FormContent(
                           key: const ValueKey('form'),
+                          formKey: _formKey,
+                          autovalidate: _autovalidate,
+                          submitting: _submitting,
+                          error: _error,
                           controller: _emailController,
                           onSend: _sendLink,
                           onBackToLogin: _backToLogin,
@@ -102,17 +134,26 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 class _FormContent extends StatelessWidget {
   const _FormContent({
     super.key,
+    required this.formKey,
+    required this.autovalidate,
+    required this.submitting,
+    required this.error,
     required this.controller,
     required this.onSend,
     required this.onBackToLogin,
   });
 
+  final GlobalKey<FormState> formKey;
+  final AutovalidateMode autovalidate;
+  final bool submitting;
+  final String? error;
   final TextEditingController controller;
   final VoidCallback onSend;
   final VoidCallback onBackToLogin;
 
   @override
   Widget build(BuildContext context) {
+    final String? message = error;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -121,19 +162,33 @@ class _FormContent extends StatelessWidget {
           subtitle: TextSpan(text: AppStrings.resetPasswordSubtitle),
         ),
         const SizedBox(height: 40.5),
-        AppTextField(
-          label: AppStrings.emailLabel,
-          hintText: AppStrings.emailHint,
-          prefixIcon: AppAssets.iconMail,
-          controller: controller,
-          helperText: AppStrings.resetEmailHelper,
-          keyboardType: TextInputType.emailAddress,
-          textInputAction: TextInputAction.send,
-          onSubmitted: (_) => onSend(),
-          autofillHints: const [AutofillHints.email],
+        Form(
+          key: formKey,
+          autovalidateMode: autovalidate,
+          child: AppTextField(
+            label: AppStrings.emailLabel,
+            hintText: AppStrings.emailHint,
+            prefixIcon: AppAssets.iconMail,
+            controller: controller,
+            readOnly: submitting,
+            helperText: AppStrings.resetEmailHelper,
+            validator: Validators.email,
+            keyboardType: TextInputType.emailAddress,
+            textInputAction: TextInputAction.send,
+            onSubmitted: (_) => onSend(),
+            autofillHints: const [AutofillHints.email],
+          ),
         ),
         const SizedBox(height: AppSpacing.l + AppSpacing.sm),
-        PrimaryButton(label: AppStrings.sendResetLink, onPressed: onSend),
+        if (message != null) ...[
+          ErrorBanner(message: message),
+          const SizedBox(height: AppSpacing.m),
+        ],
+        PrimaryButton(
+          label: AppStrings.sendResetLink,
+          isLoading: submitting,
+          onPressed: onSend,
+        ),
         const SizedBox(height: AppSpacing.xl),
         AuthSwitchPrompt(
           question: AppStrings.rememberPassword,

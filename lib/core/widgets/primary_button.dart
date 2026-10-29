@@ -1,4 +1,4 @@
-import 'package:flutter/widgets.dart';
+import 'package:flutter/cupertino.dart';
 
 import '../theme/app_colors.dart';
 import '../theme/app_radii.dart';
@@ -11,7 +11,9 @@ import 'pressable_opacity.dart';
 ///
 /// * [label] — button text (named parameter, required);
 /// * [onPressed] — `null` renders the disabled state;
-/// * [icon] — optional leading widget (e.g. "Confirm Location").
+/// * [icon] — optional leading widget (e.g. "Confirm Location");
+/// * [isLoading] — shows a spinner instead of the label and ignores taps,
+///   so a request cannot be sent twice.
 class PrimaryButton extends StatelessWidget {
   const PrimaryButton({
     super.key,
@@ -19,6 +21,7 @@ class PrimaryButton extends StatelessWidget {
     required this.onPressed,
     this.icon,
     this.height = AppSizes.buttonHeight,
+    this.isLoading = false,
   });
 
   final String label;
@@ -27,16 +30,18 @@ class PrimaryButton extends StatelessWidget {
 
   /// 52 pt by default; Add Place uses a 48 pt variant.
   final double height;
+  final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
-    final bool enabled = onPressed != null;
+    // While loading the button keeps its full colour but is not tappable.
+    final bool enabled = onPressed != null || isLoading;
     final Widget? leading = icon;
     return Semantics(
       button: true,
-      enabled: enabled,
+      enabled: enabled && !isLoading,
       child: PressableOpacity(
-        onTap: onPressed,
+        onTap: isLoading ? null : onPressed,
         pressedOpacity: 0.85,
         child: Opacity(
           opacity: enabled ? 1 : 0.4,
@@ -48,21 +53,23 @@ class PrimaryButton extends StatelessWidget {
               borderRadius: AppRadii.mdAll,
               boxShadow: enabled ? AppShadows.primaryButton : null,
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (leading != null) ...[
-                  leading,
-                  const SizedBox(width: AppSpacing.sm),
-                ],
-                Text(
-                  label,
-                  style: AppTextStyles.headline.copyWith(
-                    color: AppColors.onPrimary,
+            child: isLoading
+                ? const CupertinoActivityIndicator(color: AppColors.onPrimary)
+                : Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (leading != null) ...[
+                        leading,
+                        const SizedBox(width: AppSpacing.sm),
+                      ],
+                      Text(
+                        label,
+                        style: AppTextStyles.headline.copyWith(
+                          color: AppColors.onPrimary,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
-            ),
           ),
         ),
       ),
