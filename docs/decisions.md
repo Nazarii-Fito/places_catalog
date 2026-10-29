@@ -3,21 +3,24 @@
 Дрібні розбіжності й неоднозначності дизайну та рішення, ухвалені під час верстки.
 
 ## Узгоджено з автором
-| # | Питання | Рішення |
-|---|---|---|
-| 1 | Profile у Figma не має групи ACCOUNT SETTINGS, пілюлі «Apple ID», футера «Version»; Home — футера iCloud, бейджів на мініатюрах | Верстаємо як у Figma. Додаємо лише групу ACCOUNT SETTINGS з пунктом Change Password у стилі DATA & PRIVACY, бо він потрібен для вимоги 3.2 (App Settings та iCloud Sync прибрано 08.10, див. нижче) |
-| 2 | Немає дизайну Forgot Password і Change Password | Домальовано у Figma з наявних шарів: фрейми `26:14`, `27:14`, `27:63` |
-| 3 | Login і Registration по-різному стилізують ті самі елементи | Уніфіковано за Login (див. нижче) |
+
+| #   | Питання                                                                                                                         | Рішення                                                                                                                                                                                             |
+| --- | ------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Profile у Figma не має групи ACCOUNT SETTINGS, пілюлі «Apple ID», футера «Version»; Home — футера iCloud, бейджів на мініатюрах | Верстаємо як у Figma. Додаємо лише групу ACCOUNT SETTINGS з пунктом Change Password у стилі DATA & PRIVACY, бо він потрібен для вимоги 3.2 (App Settings та iCloud Sync прибрано 08.10, див. нижче) |
+| 2   | Немає дизайну Forgot Password і Change Password                                                                                 | Домальовано у Figma з наявних шарів: фрейми `26:14`, `27:14`, `27:63`                                                                                                                               |
+| 3   | Login і Registration по-різному стилізують ті самі елементи                                                                     | Уніфіковано за Login (див. нижче)                                                                                                                                                                   |
 
 ## Уніфікація стилів (за Login)
-| Елемент | Login (взято) | Registration (відхилення) |
-|---|---|---|
-| Лейбл поля | 11/16, tracking 0.6 | 11/13, tracking 0.55 |
-| Горизонтальний padding поля | 16 + іконка + 12 | 14 + іконка з margin |
-| Колір плейсхолдера | `#C1C6D7` | `#717786` @ 70 % |
-| Legal-текст | 12/19.5 `#717786`, посилання Regular | 13/21.13 `#414755`, посилання Medium |
+
+| Елемент                     | Login (взято)                        | Registration (відхилення)            |
+| --------------------------- | ------------------------------------ | ------------------------------------ |
+| Лейбл поля                  | 11/16, tracking 0.6                  | 11/13, tracking 0.55                 |
+| Горизонтальний padding поля | 16 + іконка + 12                     | 14 + іконка з margin                 |
+| Колір плейсхолдера          | `#C1C6D7`                            | `#717786` @ 70 %                     |
+| Legal-текст                 | 12/19.5 `#717786`, посилання Regular | 13/21.13 `#414755`, посилання Medium |
 
 ## Інше
+
 - **Змінна Figma `Main-Text #0C0E13`** у фреймах не застосована (текст скрізь `#1A1B1F`), тому береться `#1A1B1F`. `#0C0E13` лишився тільки всередині SVG логотипа Apple.
 - **Іконки табів:** у Figma активна й неактивна іконки мають однакову форму і різняться лише кольором. Тому для кожного табу один SVG, а колір задається через `ColorFilter`. Іконка табу Favorites — той самий `heart_outline.svg`.
 - **Іконка `person`** експортувалась разом із вбудованим відступом 12 px (вузол `Margin`): viewBox обрізано до 13.33 × 13.33.
@@ -34,6 +37,7 @@
 - **Методика звірки:** скриншот симулятора (iPhone 17e, @3x → 1x) обрізано на safe area 47 pt і поставлено поруч з рендером фрейму Figma (`docs/compare/`). Позиції елементів міряно по пікселях: Login, Forgot, Home, Profile і Change Password збігаються з Figma в межах ±0.5 pt.
 
 ## Етап 2
+
 - **Стан каталогу піднято в `MainShell`** (lifting state up): Home і Favorites отримують `List<Place>` параметром і повідомляють про зміни колбеками. Тому Favorites завжди показує фактично обрані на Home заклади: Daily Grind, MOMA, Atelier. У Figma Favorites там Osteria, хоча на Home у неї порожнє сердечко, тож дизайн тут суперечить сам собі.
 - **Atelier Pastel Cafe** з фрейму Favorites додано в mock-дані з датою 02.11.2022, щоб не змінювати порядок карток Home («Sorted by Recent»).
 - **Favorites:** пошук і чипси уніфіковано за Home (40 pt, текст 13), тоді як у Figma Favorites 36 pt і 15. Картка Favorites — варіант `PlaceCard.favorites`, точно за Figma (відступ 12, мініатюра 88, одна зірка).
@@ -44,6 +48,7 @@
 - **Мапи** — статичні зображення з Figma (`map_soho.png`, `map_manhattan.jpg`) низької роздільності (512 px), тож на @3x вони трохи розмиті.
 
 ## Правки після рев'ю (08.10.2026)
+
 - **Profile:**
   - пункти App Settings та iCloud Sync & Backup прибрано (у вимогах FR2 їх немає); iCloud більше ніде не згадується, крім прикладу адреси `name@icloud.com` у полях email;
   - олівець біля аватара відкриває новий екран **Edit Profile** (ім'я, email, фото: «Remove Photo» / «Use Default Photo»). Результат повертається через `Navigator.pop(user)`, і `ProfileScreen` (тепер `StatefulWidget`) показує оновлені дані. Без фото аватар показує ініціали (`UserAvatar`);
@@ -64,6 +69,45 @@
 - **Застарілі порівняння:** склейки в `docs/compare/` для Login, Register, Favorites і Place Details зроблено до цих правок. Актуальні скриншоти — у `docs/report/screenshots/` (iPhone 17).
 
 ## Правки 08.10.2026 (друга ітерація)
+
 - **Нотатки на Place Details не «стрибають» при Edit.** Блок має той самий фон, відступи та рамку 1 pt в обох режимах (змінюється лише колір рамки), рядок «Updated» не зникає. Текст у режимі перегляду має праворуч 3 pt (як `TextField` резервує під курсор), тож переноси рядків однакові. Перевірено тестом: розмір блоку до й після Edit збігається.
 - **Letter-spacing у полях вводу.** `TextField` змішує стиль із `bodyLarge` теми Material 3, де letter-spacing 0.5, тож текст у полях був ширшим за Figma. Тепер усі стилі `AppTextStyles` мають явний `letterSpacing` (0, якщо у Figma його немає).
 - **Єдиний компонент тегів `TagList`** (`lib/core/widgets/tag_list.dart`) на Add Place і Place Details: чипси з «×» для видалення та кнопка «+ Add Tag», що відкриває той самий `showAddTagDialog` (`lib/core/widgets/add_tag_dialog.dart`). Поле «Add tag...» з Figma Add Place замінено цією кнопкою, щоб взаємодія була однаковою.
+
+## ЛР №4 — Firebase (29.10.2026)
+
+### Налаштування
+- **Firebase-проєкт:** `placescatalog-7730`. Застосунки iOS (`ua.lpnu.pz33.placesCatalog`) і Android (`ua.lpnu.pz33.places_catalog`) зареєстровано через `flutterfire configure --platforms=ios,android`.
+- **Конфіги в git:** `firebase_options.dart`, `GoogleService-Info.plist`, `google-services.json` комітимо. Це не секрети: доступ обмежують правила й обмеження API-ключа.
+- **Пакети:** `firebase_core ^5.1.0`, `firebase_auth ^7.0.1`, `firebase_analytics ^13.0.1`, `firebase_crashlytics ^6.0.1`, `google_sign_in ^7.2.0` (Firebase iOS SDK 13 через Swift Package Manager, iOS ≥ 15.0, Android minSdk 24).
+- **iOS:** у `Info.plist` додано `GIDClientID` (= `CLIENT_ID`) і URL scheme `REVERSED_CLIENT_ID` з `GoogleService-Info.plist`, як вимагає `google_sign_in_ios` 7.x. Build phase `FlutterFire: upload-crashlytics-symbols` для dSYM додав FlutterFire.
+- **Інструменти:** для `flutterfire configure` встановлено Ruby-гем `xcodeproj` (Homebrew Ruby). Android toolchain на машині не встановлений, тож Android-конфіг згенеровано, але збірку не перевірено.
+
+### Архітектура
+- **`AuthRepository`** (`lib/data/repositories/`) — єдина точка роботи з Firebase Auth. `firebase_auth` і `google_sign_in` імпортує лише `firebase_auth_repository.dart`; у `lib/features` і `lib/core` SDK немає. `FakeAuthRepository` використовують тести і скриншот-режим (`--dart-define=FAKE_AUTH=signed_in|signed_out`).
+- **`AuthFailure`** (`lib/core/errors/`): enum типів + `fromCode(FirebaseAuthException.code)` → текст з `AppStrings`. Невідомий код → загальне повідомлення + `recordError(fatal: false)` у Crashlytics.
+- **`AppScope`** (`InheritedWidget`) передає `AuthRepository`, `AnalyticsService` і `CrashReporter` без state-management бібліотек.
+- **`AuthGate`** — корінь (`/`): `StreamBuilder` на `authStateChanges()` показує splash, Login або `MainShell`. Побічні ефекти (`popUntil(isFirst)`, userId в Analytics і Crashlytics) — в окремій підписці, не в `build()`. Login і Register більше не навігують на Home вручну.
+- **`signInWithGoogle()` повертає `Future<bool>`** (`false` — користувач закрив вікно Google) замість `Future<void>` з брифу: так UI знає, чи логувати `login`.
+- **Linking:** `fetchSignInMethodsForEmail` у `firebase_auth` 7 видалено. На `account-exists-with-different-credential` беремо `e.email` і `e.credential`, просимо пароль, `signIn`, потім `linkWithCredential` (`completeGoogleLink`). У Profile група Connected Accounts дає «Link» для Google. Примітка: для адрес Gmail Google — довірений провайдер, і Firebase може не повертати account-exists, а автоматично об'єднати акаунти, якщо в налаштуваннях консолі ввімкнено «Link accounts that use the same email».
+
+### UI-стани та форми
+- **`AppTextField` побудовано на `FormField<String>`:** `validator`, `errorText` (помилка сервера для поля, наприклад неправильний поточний пароль), `readOnly` (блокування під час відправки без «вицвітання»). Помилка — червона рамка й червоний текст замість helper.
+- **`PrimaryButton(isLoading)`:** `CupertinoActivityIndicator` замість тексту; повторні натискання ігноруються, поля в `readOnly`, тож другий запит відправити неможливо.
+- **`ErrorBanner`** — для помилок сервера над кнопкою. Діалоги — для `requires-recent-login`, помилки прив'язки й заглушки Apple.
+- **`GlobalKey<FormState>`** — поле `State`. `autovalidateMode: onUserInteraction` вмикається після першої спроби відправки.
+- **Login** перевіряє пароль лише на заповненість; політика (≥ 8 символів і цифра) — для нових паролів (Register, Change Password).
+- **Forgot Password:** нейтральний текст «If an account exists…», бо в проєкті ввімкнено email enumeration protection.
+- **Change Password:** спершу reauth з Current Password, потім `updatePassword`. Неправильний поточний пароль показується під полем; на `requires-recent-login` — діалог «Log In Again» з виходом. Для Google-only акаунта рядок пояснює, що пароля немає.
+- **Edit Profile:**
+  - 8 пресет-аватарів DiceBear (`notionists`, стабільні HTTPS-посилання, перевірено 200 OK) або власне посилання (`https://`, прев'ю з `loadingBuilder` / `errorBuilder`);
+  - email лише для читання;
+  - старий варіант «Remove Photo / Use Default Photo» з ЛР №3 прибрано: фото тепер — це Firebase `photoURL`.
+- **Profile:** ім'я, email, фото й провайдери — з `userChanges()`; статистика лишається mock (`mockUser.stats`).
+- **Apple:** кнопка показує `CupertinoAlertDialog` «Sign in with Apple is not available in this build» (потрібен платний Apple Developer Program).
+
+### Analytics і Crashlytics
+- **`FirebaseAnalyticsObserver`** у `navigatorObservers` логує `screen_view` для іменованих маршрутів. Вкладки в `IndexedStack` логуються вручну (`logScreenView` у `MainShell._selectTab`).
+- **Події:** `sign_up`, `login` (method: password / google), `password_reset_requested`, `password_changed`, `profile_updated {photo_source}`, `place_favorite_toggled {place_id, is_favorite: 0/1}` (булеві значення в параметрах не дозволені), `place_opened {place_id, category}`, `account_linked {provider}`.
+- **Crashlytics:** `FlutterError.onError = recordFlutterFatalError`, `PlatformDispatcher.instance.onError` → `recordError(fatal: true)`. `setUserIdentifier(uid)` — без email. Breadcrumbs `log('Auth: …')` без паролів і токенів.
+- **Тестові помилки:** довге натискання на футер «PlacesCatalog · Version 1.0» у Profile відкриває Developer Tools з «Send Test Non-Fatal Error» і «Force Test Crash». Меню працює лише не в release (`kReleaseMode`).
