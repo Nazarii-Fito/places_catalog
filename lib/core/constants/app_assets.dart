@@ -87,4 +87,18 @@ abstract final class AppAssets {
   static const String iconCompass = '$_icons/compass.svg';
   static const String iconCheckCircle = '$_icons/check_circle.svg';
   static const String iconMapPin = '$_icons/map_pin.svg';
+
+  // Preset profile photos (Edit Profile). Stable HTTPS links: DiceBear
+  // renders the same picture for the same seed, so the URL never changes.
+  static const String _dicebear = 'https://api.dicebear.com/9.x/notionists/png';
+  static const List<String> presetAvatarUrls = [
+    '$_dicebear?seed=Nazarii&size=256&backgroundColor=d8e2ff',
+    '$_dicebear?seed=Olena&size=256&backgroundColor=d8e2ff',
+    '$_dicebear?seed=Taras&size=256&backgroundColor=d8e2ff',
+    '$_dicebear?seed=Sofia&size=256&backgroundColor=d8e2ff',
+    '$_dicebear?seed=Maksym&size=256&backgroundColor=d8e2ff',
+    '$_dicebear?seed=Iryna&size=256&backgroundColor=d8e2ff',
+    '$_dicebear?seed=Andrii&size=256&backgroundColor=d8e2ff',
+    '$_dicebear?seed=Kateryna&size=256&backgroundColor=d8e2ff',
+  ];
 }

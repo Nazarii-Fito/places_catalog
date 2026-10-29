@@ -19,14 +19,16 @@ class ProfileHero extends StatelessWidget {
     super.key,
     required this.name,
     required this.email,
-    required this.avatarAsset,
+    required this.photoUrl,
     required this.initials,
     required this.onEdit,
   });
 
   final String name;
   final String email;
-  final String? avatarAsset;
+
+  /// Firebase `photoURL` (HTTPS); `null` shows the initials.
+  final String? photoUrl;
   final String initials;
   final VoidCallback onEdit;
 
@@ -38,7 +40,7 @@ class ProfileHero extends StatelessWidget {
         Stack(
           clipBehavior: Clip.none,
           children: [
-            UserAvatar(imageAsset: avatarAsset, initials: initials),
+            UserAvatar(imageUrl: photoUrl, initials: initials),
             // 44 pt hit area centred on the 36 pt badge.
             Positioned(
               right: -8,

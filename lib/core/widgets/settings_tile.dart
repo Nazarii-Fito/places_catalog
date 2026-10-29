@@ -9,55 +9,82 @@ import '../theme/app_text_styles.dart';
 import 'app_svg_icon.dart';
 import 'pressable_opacity.dart';
 
-/// One row of an iOS inset grouped list: icon tile, title and a
-/// disclosure chevron.
+/// One row of an iOS inset grouped list: icon tile, title, optional
+/// [value] on the right ("Linked") and a disclosure chevron.
+/// A `null` [onTap] renders the row disabled.
 class SettingsTile extends StatelessWidget {
   const SettingsTile({
     super.key,
     required this.icon,
     required this.title,
     required this.onTap,
+    this.value,
+    this.valueColor = AppColors.textTertiary,
+    this.showChevron = true,
+    this.trailing,
   });
 
   /// Icon widget placed inside the grey 32×32 tile.
   final Widget icon;
   final String title;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
+  final String? value;
+  final Color valueColor;
+  final bool showChevron;
+
+  /// Custom widget on the right (e.g. a spinner); replaces [value].
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
+      enabled: onTap != null,
       child: PressableOpacity(
         onTap: onTap,
         pressedOpacity: 0.5,
-        child: SizedBox(
-          height: AppSizes.fieldHeight,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.l),
-            child: Row(
-              children: [
-                Container(
-                  width: 32,
-                  height: 32,
-                  alignment: Alignment.center,
-                  decoration: const BoxDecoration(
-                    color: AppColors.surfaceContainer,
-                    borderRadius: AppRadii.smAll,
+        child: Opacity(
+          opacity: onTap == null ? 0.5 : 1,
+          child: SizedBox(
+            height: AppSizes.fieldHeight,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.l),
+              child: Row(
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    alignment: Alignment.center,
+                    decoration: const BoxDecoration(
+                      color: AppColors.surfaceContainer,
+                      borderRadius: AppRadii.smAll,
+                    ),
+                    child: icon,
                   ),
-                  child: icon,
-                ),
-                const SizedBox(width: AppSpacing.m),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: AppTextStyles.body,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  const SizedBox(width: AppSpacing.m),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: AppTextStyles.body,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                ),
-                const AppSvgIcon(AppAssets.iconChevronRight),
-              ],
+                  if (trailing case final Widget custom) ...[
+                    custom,
+                    const SizedBox(width: AppSpacing.sm),
+                  ] else if (value case final String text) ...[
+                    Text(
+                      text,
+                      style: AppTextStyles.subheadline.copyWith(
+                        color: valueColor,
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                  ],
+                  if (showChevron) const AppSvgIcon(AppAssets.iconChevronRight),
+                ],
+              ),
             ),
           ),
         ),
