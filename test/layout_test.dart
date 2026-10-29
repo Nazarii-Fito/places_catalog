@@ -8,7 +8,6 @@ import 'package:places_catalog/features/places/place_details_args.dart';
 import 'package:places_catalog/features/places/screens/add_place_screen.dart';
 import 'package:places_catalog/features/places/screens/location_picker_screen.dart';
 import 'package:places_catalog/features/places/screens/place_details_screen.dart';
-import 'package:places_catalog/data/mock/mock_user.dart';
 import 'package:places_catalog/features/profile/screens/change_password_screen.dart';
 import 'package:places_catalog/features/profile/screens/edit_profile_screen.dart';
 import 'package:places_catalog/features/profile/screens/export_archive_screen.dart';
@@ -43,7 +42,7 @@ void main() {
     ),
     'Add Place': () => const AddPlaceScreen(),
     'Location Picker': () => const LocationPickerScreen(),
-    'Edit Profile': () => EditProfileScreen(user: mockUser),
+    'Edit Profile': () => const EditProfileScreen(),
     'Export Archive': () => ExportArchiveScreen(places: mockPlaces),
   };
 
@@ -82,6 +81,7 @@ void main() {
     useIPhone(tester, size: devices['iPhone SE']!, textScale: 1.2);
     await tester.pumpWidget(testApp(const ForgotPasswordScreen()));
     await tester.pumpAndSettle();
+    await tester.enterText(find.byType(EditableText), 'me@icloud.com');
     await tester.tap(find.text('Send Reset Link'));
     await tester.pumpAndSettle();
     expect(find.text('Check your email'), findsOneWidget);

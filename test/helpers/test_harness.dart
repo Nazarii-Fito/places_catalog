@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:places_catalog/app/app_scope.dart';
 import 'package:places_catalog/app/routes/app_routes.dart';
 import 'package:places_catalog/core/theme/app_theme.dart';
+import 'package:places_catalog/data/repositories/auth_repository.dart';
+import 'package:places_catalog/data/repositories/fake_auth_repository.dart';
+import 'package:places_catalog/data/services/analytics_service.dart';
+import 'package:places_catalog/data/services/crash_reporter.dart';
 
 /// Loads the real Inter font so text is measured like on a device
 /// (the default test font "Ahem" draws every glyph as a square).
@@ -35,12 +40,26 @@ void useIPhone(
   addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
 }
 
-/// The app's theme and router around [home].
-Widget testApp(Widget home) {
-  return MaterialApp(
-    theme: AppTheme.light,
-    home: home,
-    onGenerateRoute: AppRoutes.onGenerateRoute,
+/// Services for tests: [auth] defaults to a signed-in fake user, Analytics
+/// and Crashlytics do nothing.
+Widget withScope(Widget child, {AuthRepository? auth}) {
+  return AppScope(
+    auth: auth ?? FakeAuthRepository.signedIn(),
+    analytics: const NoopAnalyticsService(),
+    crashReporter: const NoopCrashReporter(),
+    child: child,
+  );
+}
+
+/// The app's theme and router around [home], inside an [AppScope].
+Widget testApp(Widget home, {AuthRepository? auth}) {
+  return withScope(
+    MaterialApp(
+      theme: AppTheme.light,
+      home: home,
+      onGenerateRoute: AppRoutes.onGenerateRoute,
+    ),
+    auth: auth,
   );
 }
 

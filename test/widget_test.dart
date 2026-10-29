@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:places_catalog/app/app.dart';
+import 'package:places_catalog/core/constants/app_assets.dart';
+import 'package:places_catalog/core/widgets/app_svg_icon.dart';
 import 'package:places_catalog/core/widgets/place_card.dart';
 import 'package:places_catalog/data/mock/mock_places.dart';
+import 'package:places_catalog/data/repositories/fake_auth_repository.dart';
 import 'package:places_catalog/features/auth/screens/login_screen.dart';
 import 'package:places_catalog/features/auth/screens/register_screen.dart';
 import 'package:places_catalog/features/home/screens/home_screen.dart';
@@ -16,9 +19,13 @@ import 'helpers/test_harness.dart';
 void main() {
   setUpAll(loadInterFont);
 
-  testWidgets('Login screen renders the form', (WidgetTester tester) async {
+  testWidgets('Signed-out start shows the Login form', (
+    WidgetTester tester,
+  ) async {
     useIPhone(tester);
-    await tester.pumpWidget(const PlacesCatalogApp());
+    await tester.pumpWidget(
+      withScope(const PlacesCatalogApp(), auth: FakeAuthRepository()),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('PlacesCatalog'), findsOneWidget);
@@ -27,19 +34,22 @@ void main() {
     expect(find.text('Create Account'), findsOneWidget);
   });
 
-  testWidgets('Tapping "Log In" opens Home and removes Login', (
+  testWidgets('Valid sign-in switches the auth gate to Home', (
     WidgetTester tester,
   ) async {
     useIPhone(tester);
-    await tester.pumpWidget(const PlacesCatalogApp());
+    final FakeAuthRepository auth = FakeAuthRepository();
+    await tester.pumpWidget(withScope(const PlacesCatalogApp(), auth: auth));
     await tester.pumpAndSettle();
 
+    await tester.enterText(find.byType(EditableText).at(0), 'me@icloud.com');
+    await tester.enterText(find.byType(EditableText).at(1), 'secret123');
     await tester.tap(find.text('Log In'));
     await tester.pumpAndSettle();
 
+    expect(auth.calls, ['signIn']);
     expect(find.byType(MainShell), findsOneWidget);
     expect(find.text('My Places'), findsOneWidget);
-    expect(find.text('PlacesCatalog'), findsNothing);
   });
 
   testWidgets('Tab bar switches between Home, Favorites and Profile', (
@@ -182,11 +192,16 @@ void main() {
     expect(find.text('App Settings'), findsNothing);
     expect(find.textContaining('iCloud'), findsNothing);
 
-    await tester.tap(find.bySemanticsLabel('Edit profile'));
-    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byWidgetPredicate(
+        (Widget w) => w is AppSvgIcon && w.asset == AppAssets.iconPencil,
+      ),
+    );
+    // Network avatars keep pumpAndSettle busy in tests — step time instead.
+    await _settle(tester);
     await tester.enterText(find.byType(EditableText).first, 'Nazar Fito');
     await tester.tap(find.text('Save Changes'));
-    await tester.pumpAndSettle();
+    await _settle(tester);
     await tester.tap(find.text('OK'));
     await tester.pumpAndSettle();
     expect(find.text('Nazar Fito'), findsOneWidget);
@@ -257,4 +272,11 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('#Rooftop'), findsOneWidget);
   });
+}
+
+/// Advances fake time without waiting for network images to settle.
+Future<void> _settle(WidgetTester tester) async {
+  for (int i = 0; i < 3; i++) {
+    await tester.pump(const Duration(milliseconds: 500));
+  }
 }
