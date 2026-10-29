@@ -53,7 +53,7 @@ abstract final class AppStrings {
   static const String sendResetLink = 'Send Reset Link';
   static const String rememberPassword = 'Remember your password? ';
   static const String checkEmailTitle = 'Check your email';
-  static const String checkEmailSubtitle = 'We sent a password reset link to';
+  static const String checkEmailSubtitle = resetSentNeutral;
   static const String backToLogIn = 'Back to Log In';
   static const String didntGetEmail = "Didn't get the email? ";
   static const String resend = 'Resend';
@@ -198,14 +198,45 @@ abstract final class AppStrings {
   static const String dataAndPrivacy = 'Data & Privacy';
   static const String exportArchive = 'Export Places Archive';
   static const String logOut = 'Log Out';
+  // Connected accounts (account linking)
+  static const String connectedAccounts = 'Connected Accounts';
+  static const String providerEmail = 'Email & Password';
+  static const String providerGoogle = 'Google';
+  static const String linked = 'Linked';
+  static const String link = 'Link';
+  static const String notSet = 'Not set';
+  static const String linkFailedTitle = "Couldn't connect Google";
+  static const String noPasswordTitle = 'No password to change';
+  static const String noPasswordMessage =
+      'You sign in with Google, so this account has no PlacesCatalog '
+      'password. Use "Forgot Password?" on the login screen to create one.';
+
+  // Developer menu (Crashlytics test)
+  static const String appVersion = 'PlacesCatalog · Version 1.0';
+  static const String developerTools = 'Developer Tools';
+  static const String developerToolsMessage =
+      'Test Firebase Crashlytics reporting.';
+  static const String sendTestError = 'Send Test Non-Fatal Error';
+  static const String forceTestCrash = 'Force Test Crash';
+  static const String testErrorSentTitle = 'Test Error Sent';
+  static const String testErrorSentMessage =
+      'It will appear in Firebase Crashlytics within a few minutes.';
+
+  // Re-authentication
+  static const String signInAgainTitle = 'Log In Again';
+
   // Edit profile
   static const String editProfile = 'Edit Profile';
   static const String accountOverline = 'Account';
   static const String editProfileSubtitle =
-      'Update how your name and email appear in PlacesCatalog.';
-  static const String changePhoto = 'Change Photo';
-  static const String removeProfilePhoto = 'Remove Photo';
-  static const String useDefaultPhoto = 'Use Default Photo';
+      'Update your name and photo in PlacesCatalog.';
+  static const String choosePhoto = 'Choose a Photo';
+  static const String useCustomLink = 'Use Custom Link';
+  static const String photoLinkLabel = 'Image Link';
+  static const String photoLinkHint = 'https://example.com/me.png';
+  static const String imageLoadFailed = "Couldn't load this image.";
+  static const String presetAvatar = 'Preset avatar';
+  static const String emailReadOnly = "Email can't be changed here.";
   static const String saveChanges = 'Save Changes';
   static const String profileUpdatedTitle = 'Profile Updated';
   static const String profileUpdatedMessage = 'Your changes have been saved.';
@@ -242,6 +273,62 @@ abstract final class AppStrings {
   static const String passwordUpdatedMessage =
       'Your password has been changed successfully.';
   static const String ok = 'OK';
+
+  // Social sign-in
+  static const String appleUnavailableTitle = 'Sign in with Apple';
+  static const String appleUnavailableMessage =
+      'Sign in with Apple is not available in this build.';
+  static const String linkGoogleTitle = 'Connect Google';
+  static const String linkGoogleMessage =
+      'An account with this email already exists. Enter its password to '
+      'connect Google — next time you can use either method.';
+  static const String connect = 'Connect';
+
+  // Password reset (neutral text: email enumeration protection is on)
+  static const String resetSentNeutral =
+      "If an account exists for this email, we've sent a reset link to";
+
+  // Auth errors (FirebaseAuthException codes mapped by AuthFailure)
+  static const String errorInvalidEmail = 'Enter a valid email address.';
+  static const String errorInvalidCredentials =
+      'Incorrect email or password. Please try again.';
+  static const String errorUserDisabled =
+      'This account has been disabled. Contact support for help.';
+  static const String errorEmailInUse =
+      'An account with this email already exists. Try logging in instead.';
+  static const String errorWeakPassword =
+      'Choose a stronger password (at least 8 characters with a number).';
+  static const String errorTooManyRequests =
+      'Too many attempts. Please wait a moment and try again.';
+  static const String errorNetwork =
+      'No internet connection. Check your network and try again.';
+  static const String errorRecentLogin =
+      'For your security, please log in again before changing your password.';
+  static const String errorNotAllowed =
+      'This sign-in method is not enabled for PlacesCatalog yet.';
+  static const String errorAccountExists =
+      'You already have an account with this email. Enter its password to '
+      'connect Google to it.';
+  static const String errorCredentialInUse =
+      'This Google account is already connected to another PlacesCatalog '
+      'account.';
+  static const String errorAlreadyLinked =
+      'Google is already connected to your account.';
+  static const String errorGoogleUnavailable =
+      'Google sign-in did not return an account. Please try again.';
+  static const String errorUnknown = 'Something went wrong. Please try again.';
+
+  // Validation (Form validators)
+  static const String validationRequired = 'This field is required.';
+  static const String validationNameLength = 'Name must be 2–50 characters.';
+  static const String validationEmail = 'Enter a valid email address.';
+  static const String validationPassword =
+      'At least 8 characters with a number.';
+  static const String validationConfirm = 'Passwords do not match.';
+  static const String validationSameAsCurrent =
+      'New password must differ from the current one.';
+  static const String validationHttpsUrl =
+      'Enter an image link that starts with https://';
 
   // Dates
   static const String am = 'AM';

@@ -1,20 +1,18 @@
 import 'package:flutter/cupertino.dart';
 
 import '../../features/auth/screens/forgot_password_screen.dart';
-import '../../features/auth/screens/login_screen.dart';
 import '../../features/auth/screens/register_screen.dart';
 import '../../features/places/place_details_args.dart';
 import '../../features/places/screens/add_place_screen.dart';
 import '../../features/places/screens/location_picker_screen.dart';
 import '../../features/places/screens/place_details_screen.dart';
 import '../../data/mock/mock_places.dart';
-import '../../data/mock/mock_user.dart';
 import '../../data/models/place.dart';
-import '../../data/models/user.dart';
 import '../../features/profile/screens/change_password_screen.dart';
 import '../../features/profile/screens/edit_profile_screen.dart';
 import '../../features/profile/screens/export_archive_screen.dart';
 import '../../features/shell/main_shell.dart';
+import '../auth_gate.dart';
 import '../dev_launch_options.dart';
 
 /// Route names and the single route factory of the app.
@@ -22,7 +20,8 @@ import '../dev_launch_options.dart';
 /// Every screen is wrapped in a [CupertinoPageRoute]: iOS slide transition
 /// plus swipe-back from the left edge (HIG — no system "Back" button).
 abstract final class AppRoutes {
-  static const String login = '/';
+  /// Root: [AuthGate] decides between Login and the main shell.
+  static const String root = '/';
   static const String register = '/register';
   static const String forgotPassword = '/forgot-password';
   static const String home = '/home';
@@ -47,13 +46,11 @@ abstract final class AppRoutes {
       ),
       AppRoutes.addPlace => (_) => const AddPlaceScreen(),
       AppRoutes.locationPicker => (_) => const LocationPickerScreen(),
-      AppRoutes.editProfile => (_) => EditProfileScreen(
-        user: settings.arguments as User? ?? mockUser,
-      ),
+      AppRoutes.editProfile => (_) => const EditProfileScreen(),
       AppRoutes.exportArchive => (_) => ExportArchiveScreen(
         places: settings.arguments as List<Place>? ?? mockPlaces,
       ),
-      _ => (_) => const LoginScreen(),
+      _ => (_) => const AuthGate(),
     };
     return CupertinoPageRoute<Object?>(
       builder: builder,
