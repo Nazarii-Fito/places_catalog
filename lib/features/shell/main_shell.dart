@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../app/app_scope.dart';
 import '../../app/dev_launch_options.dart';
 import '../../app/routes/app_routes.dart';
 import '../../core/constants/app_assets.dart';
@@ -39,12 +40,21 @@ class _MainShellState extends State<MainShell> {
   int _currentIndex = DevLaunchOptions.initialTab;
   List<Place> _places = List.of(mockPlaces);
 
+  /// Screen names for Analytics: tabs live in an IndexedStack (no routes),
+  /// so the navigator observer cannot see them — they are logged by hand.
+  static const List<String> _tabScreenNames = ['home', 'favorites', 'profile'];
+
   void _selectTab(int index) {
     if (index == _currentIndex) return;
     setState(() => _currentIndex = index);
+    AppScope.of(context).analytics.logScreenView(_tabScreenNames[index]);
   }
 
   void _toggleFavorite(Place place) {
+    AppScope.of(context).analytics.logPlaceFavoriteToggled(
+      placeId: place.id,
+      isFavorite: !place.isFavorite,
+    );
     setState(() {
       _places = [
         for (final Place p in _places)
@@ -68,6 +78,8 @@ class _MainShellState extends State<MainShell> {
   }
 
   void _openPlace(Place place) {
+    AppScope.of(context).analytics
+        .logPlaceOpened(placeId: place.id, category: place.category.name);
     Navigator.of(context).pushNamed(
       AppRoutes.placeDetails,
       arguments: PlaceDetailsArgs(
