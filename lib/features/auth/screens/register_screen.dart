@@ -77,6 +77,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _social(SocialProvider provider) async {
     if (_submitting) return;
+    // Apple only shows an info dialog: no request, so no loading state.
+    if (provider == SocialProvider.apple) {
+      await runSocialSignIn(context, provider);
+      return;
+    }
     setState(() {
       _submitting = true;
       _error = null;
