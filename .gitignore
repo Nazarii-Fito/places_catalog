@@ -49,3 +49,7 @@ app.*.map.json
 
 # Lab inputs (methodology PDF, Lab 2 report, personal EXIF photo) — local only
 docs/input/
+
+# Local report materials (not part of the app)
+report_data/
+report_data.zip

@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "776015351752",
+    "project_id": "placescatalog-7730",
+    "storage_bucket": "placescatalog-7730.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:776015351752:android:f4bda32d182d991687fafd",
+        "android_client_info": {
+          "package_name": "ua.lpnu.pz33.places_catalog"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "776015351752-0ghr1te4v3tt42e5dhpnga9o25b7elbu.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCxqH5I-Dwmxo-89RzMak4ueAs_GRvaeTE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "776015351752-0ghr1te4v3tt42e5dhpnga9o25b7elbu.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "776015351752-li8uanbvqqs5ul16p811ftnsjiudtt82.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "ua.lpnu.pz33.placesCatalog"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
