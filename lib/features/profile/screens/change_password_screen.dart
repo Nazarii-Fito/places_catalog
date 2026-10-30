@@ -64,6 +64,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       _error = null;
     });
     bool needsSignIn = false;
+    bool changed = false;
     try {
       // Re-authenticates with the current password, then updates it.
       await scope.auth.changePassword(
@@ -71,15 +72,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         newPassword: _newController.text,
       );
       await scope.analytics.logPasswordChanged();
-      if (!mounted) return;
-      await AppConfirmDialog.show(
-        context,
-        title: AppStrings.passwordUpdatedTitle,
-        message: AppStrings.passwordUpdatedMessage,
-        confirmLabel: AppStrings.ok,
-        cancelLabel: null,
-      );
-      navigator.pop();
+      changed = true;
     } on AuthFailure catch (failure) {
       if (!mounted) return;
       switch (failure.type) {
@@ -93,8 +86,21 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
-    // Shown after the spinner stops, so it doesn't keep spinning behind.
-    if (needsSignIn && mounted) await _askToSignInAgain(scope);
+    // Dialogs are shown after the spinner stops, so it doesn't keep
+    // spinning behind them.
+    if (!mounted) return;
+    if (changed) {
+      await AppConfirmDialog.show(
+        context,
+        title: AppStrings.passwordUpdatedTitle,
+        message: AppStrings.passwordUpdatedMessage,
+        confirmLabel: AppStrings.ok,
+        cancelLabel: null,
+      );
+      navigator.pop();
+    } else if (needsSignIn) {
+      await _askToSignInAgain(scope);
+    }
   }
 
   /// `requires-recent-login`: the session is too old for a sensitive

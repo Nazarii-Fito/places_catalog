@@ -172,6 +172,23 @@ void main() {
     expect(find.text(AppStrings.errorRecentLogin), findsOneWidget);
   });
 
+  testWidgets('Change Password: success dialog is shown without a spinner', (
+    WidgetTester tester,
+  ) async {
+    useIPhone(tester, size: const Size(390, 1000));
+    final FakeAuthRepository auth = FakeAuthRepository.signedIn();
+    await tester.pumpWidget(testApp(const ChangePasswordScreen(), auth: auth));
+
+    await tester.enterText(field(0), 'places2026');
+    await tester.enterText(field(1), 'catalog2027');
+    await tester.enterText(field(2), 'catalog2027');
+    await tester.tap(find.text('Update Password'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Password Updated'), findsOneWidget);
+    expect(find.byType(CupertinoActivityIndicator), findsNothing);
+  });
+
   testWidgets('Link Google in Profile marks it as Linked', (
     WidgetTester tester,
   ) async {

@@ -77,6 +77,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       _saving = true;
       _error = null;
     });
+    bool saved = false;
     try {
       final String? photo = _photoUrl;
       await scope.auth.updateProfile(
@@ -90,20 +91,22 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ? 'preset'
             : 'unchanged',
       );
-      if (!mounted) return;
-      await AppConfirmDialog.show(
-        context,
-        title: AppStrings.profileUpdatedTitle,
-        message: AppStrings.profileUpdatedMessage,
-        confirmLabel: AppStrings.ok,
-        cancelLabel: null,
-      );
-      navigator.pop();
+      saved = true;
     } on AuthFailure catch (failure) {
       if (mounted) setState(() => _error = failure.message);
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+    // Shown after the spinner stops, so it doesn't keep spinning behind.
+    if (!saved || !mounted) return;
+    await AppConfirmDialog.show(
+      context,
+      title: AppStrings.profileUpdatedTitle,
+      message: AppStrings.profileUpdatedMessage,
+      confirmLabel: AppStrings.ok,
+      cancelLabel: null,
+    );
+    navigator.pop();
   }
 
   @override
