@@ -127,10 +127,19 @@ lib/
 
 Що додалося в ЛР №4
 
-- data/repositories — AuthRepository (абстрактний контракт), FirebaseAuthRepository (єдине місце, що імпортує firebase_auth і google_sign_in) та FakeAuthRepository (для тестів і скриншот-режиму).
+- data/repositories — AuthRepository (абстрактний контракт), FirebaseAuthRepository (єдине місце, що імпортує firebase_auth, google_sign_in і sign_in_with_apple) та FakeAuthRepository (для тестів і скриншот-режиму).
 - data/services — AnalyticsService і CrashReporter: обгортки над Firebase Analytics і Crashlytics з no-op реалізаціями для тестів.
 - core/errors і core/validation — AuthFailure (мапінг кодів FirebaseAuthException у зрозумілі повідомлення) та Validators (чисті функції для TextFormField.validator).
 - app/app_scope.dart і app/auth_gate.dart — InheritedWidget, що передає репозиторій і сервіси екранам, та корінь застосунку, який за authStateChanges() показує Login або MainShell (відновлення сеансу).
 - Екрани в features/ звертаються лише до AuthRepository і сервісів, жоден не імпортує Firebase SDK.
 
-Платформна конфігурація (поза lib/): ios/Runner/GoogleService-Info.plist, android/app/google-services.json, firebase.json — згенеровані flutterfire configure.
+Платформна конфігурація (поза lib/):
+- ios/Runner/GoogleService-Info.plist, android/app/google-services.json, firebase.json, lib/firebase_options.dart — згенеровані flutterfire configure;
+- ios/Runner/Info.plist — ключ GIDClientID і URL-схема REVERSED_CLIENT_ID для Google Sign-In;
+- ios/Runner/Runner.entitlements — com.apple.developer.applesignin для Sign in with Apple (підключено в Xcode через CODE_SIGN_ENTITLEMENTS).
+
+Тести (каталог test/)
+- test/validators_test.dart — валідатори та мапінг кодів AuthFailure.fromCode (новий);
+- test/auth_flow_test.dart — сценарії входу, реєстрації, відновлення пароля, зміни пароля, requires-recent-login, прив'язки Google, входу через Apple, відновлення сеансу, на FakeAuthRepository (новий);
+- test/widget_test.dart, test/layout_test.dart — оновлені під AuthGate і AppScope; test/helpers/test_harness.dart — спільна обгортка.
+Усього 91 тест, flutter analyze без зауважень.
