@@ -3,30 +3,32 @@ import 'package:flutter/cupertino.dart';
 import '../../../app/app_scope.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/errors/auth_failure.dart';
-import '../../../core/widgets/app_confirm_dialog.dart';
 import '../../../core/widgets/social_auth_button.dart';
 
 /// Runs the chosen social sign-in from Login / Create Account.
 ///
-/// Returns an error message for the banner, or `null` on success, on
-/// cancel and for the Apple placeholder (which shows its own alert).
+/// Returns an error message for the banner, or `null` on success or
+/// cancel.
 Future<String?> runSocialSignIn(
   BuildContext context,
   SocialProvider provider,
 ) async {
   switch (provider) {
     case SocialProvider.apple:
-      // Needs the paid Apple Developer Program — out of scope for Lab 4.
-      await AppConfirmDialog.show(
-        context,
-        title: AppStrings.appleUnavailableTitle,
-        message: AppStrings.appleUnavailableMessage,
-        confirmLabel: AppStrings.ok,
-        cancelLabel: null,
-      );
-      return null;
+      return _runApple(context);
     case SocialProvider.google:
       return _runGoogle(context);
+  }
+}
+
+Future<String?> _runApple(BuildContext context) async {
+  final AppScope scope = AppScope.of(context);
+  try {
+    final bool signedIn = await scope.auth.signInWithApple();
+    if (signedIn) await scope.analytics.logLogin('apple');
+    return null;
+  } on AuthFailure catch (failure) {
+    return failure.message;
   }
 }
 

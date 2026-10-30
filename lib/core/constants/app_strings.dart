@@ -275,9 +275,6 @@ abstract final class AppStrings {
   static const String ok = 'OK';
 
   // Social sign-in
-  static const String appleUnavailableTitle = 'Sign in with Apple';
-  static const String appleUnavailableMessage =
-      'Sign in with Apple is not available in this build.';
   static const String linkGoogleTitle = 'Connect Google';
   static const String linkGoogleMessage =
       'An account with this email already exists. Enter its password to '
@@ -316,6 +313,8 @@ abstract final class AppStrings {
       'Google is already connected to your account.';
   static const String errorGoogleUnavailable =
       'Google sign-in did not return an account. Please try again.';
+  static const String errorAppleUnavailable =
+      'Sign in with Apple is not available on this device.';
   static const String errorUnknown = 'Something went wrong. Please try again.';
 
   // Validation (Form validators)

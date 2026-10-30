@@ -27,6 +27,10 @@ abstract interface class AuthRepository {
   /// e-mail already has a password account — see [completeGoogleLink].
   Future<bool> signInWithGoogle();
 
+  /// Native Sign in with Apple (iOS). Returns `false` when the user cancels.
+  /// Apple shares the name only on the first sign-in, so it is saved then.
+  Future<bool> signInWithApple();
+
   /// Signs in with the existing password account and links the Google
   /// credential that was rejected by [signInWithGoogle].
   Future<void> completeGoogleLink({

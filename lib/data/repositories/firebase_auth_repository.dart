@@ -1,12 +1,18 @@
+import 'dart:convert';
+import 'dart:math';
+
+import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import '../../core/errors/auth_failure.dart';
 import '../models/app_user.dart';
 import '../services/crash_reporter.dart';
 import 'auth_repository.dart';
 
-/// [AuthRepository] implemented with Firebase Auth + Google Sign-In 7.x.
+/// [AuthRepository] implemented with Firebase Auth, Google Sign-In 7.x and
+/// native Sign in with Apple.
 ///
 /// This is the only place in the app that imports `firebase_auth`.
 class FirebaseAuthRepository implements AuthRepository {
@@ -75,6 +81,51 @@ class FirebaseAuthRepository implements AuthRepository {
       }
       rethrow;
     }
+  });
+
+  @override
+  Future<bool> signInWithApple() => _guard('signInWithApple', () async {
+    if (!await SignInWithApple.isAvailable()) {
+      throw const AuthFailure(AuthFailureType.appleUnavailable);
+    }
+    // Firebase checks the nonce: Apple gets its SHA-256, Firebase the raw one.
+    final String rawNonce = _randomNonce();
+    final String hashedNonce = sha256.convert(utf8.encode(rawNonce)).toString();
+    final AuthorizationCredentialAppleID apple;
+    try {
+      apple = await SignInWithApple.getAppleIDCredential(
+        scopes: const [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+        nonce: hashedNonce,
+      );
+    } on SignInWithAppleAuthorizationException catch (e) {
+      if (e.code == AuthorizationErrorCode.canceled) return false;
+      rethrow;
+    }
+    final String? idToken = apple.identityToken;
+    if (idToken == null) {
+      throw const AuthFailure(AuthFailureType.appleUnavailable);
+    }
+    final UserCredential result = await _auth.signInWithCredential(
+      OAuthProvider('apple.com').credential(
+        idToken: idToken,
+        rawNonce: rawNonce,
+        accessToken: apple.authorizationCode,
+      ),
+    );
+    // Apple sends the name only the very first time.
+    final User? user = result.user;
+    final String name = [
+      apple.givenName,
+      apple.familyName,
+    ].whereType<String>().join(' ').trim();
+    if (user != null && (user.displayName ?? '').isEmpty && name.isNotEmpty) {
+      await user.updateDisplayName(name);
+      await user.reload();
+    }
+    return true;
   });
 
   @override
@@ -175,6 +226,16 @@ class FirebaseAuthRepository implements AuthRepository {
     }
   }
 
+  static String _randomNonce([int length = 32]) {
+    const String charset =
+        '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._';
+    final Random random = Random.secure();
+    return List.generate(
+      length,
+      (_) => charset[random.nextInt(charset.length)],
+    ).join();
+  }
+
   /// Converts every SDK error into [AuthFailure]. Unknown codes and
   /// unexpected errors are sent to Crashlytics as non-fatal.
   Future<T> _guard<T>(String action, Future<T> Function() body) async {
@@ -192,6 +253,9 @@ class FirebaseAuthRepository implements AuthRepository {
     } on GoogleSignInException catch (e, stack) {
       await _crash.recordError(e, stack, reason: 'Google $action: ${e.code}');
       throw const AuthFailure(AuthFailureType.googleUnavailable);
+    } on SignInWithAppleException catch (e, stack) {
+      await _crash.recordError(e, stack, reason: 'Apple $action');
+      throw const AuthFailure(AuthFailureType.appleUnavailable);
     } catch (e, stack) {
       await _crash.recordError(e, stack, reason: 'Auth $action failed');
       throw const AuthFailure(AuthFailureType.unknown);

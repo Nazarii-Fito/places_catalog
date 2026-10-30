@@ -107,6 +107,22 @@ class FakeAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<bool> signInWithApple() async {
+    await _run(
+      'signInWithApple',
+      () => _emit(
+        const AppUser(
+          uid: 'fake-apple',
+          email: 'apple.user@privaterelay.appleid.com',
+          displayName: 'Apple User',
+          providerIds: {AppUser.appleProvider},
+        ),
+      ),
+    );
+    return true;
+  }
+
+  @override
   Future<void> completeGoogleLink({
     required String email,
     required String password,

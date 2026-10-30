@@ -38,6 +38,22 @@ void main() {
     expect(auth.currentUser, isNull);
   });
 
+  testWidgets('Apple button signs in through the repository', (
+    WidgetTester tester,
+  ) async {
+    useIPhone(tester);
+    final FakeAuthRepository auth = FakeAuthRepository();
+    await tester.pumpWidget(withScope(const PlacesCatalogApp(), auth: auth));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Apple'));
+    await tester.pumpAndSettle();
+
+    expect(auth.calls, ['signInWithApple']);
+    expect(auth.currentUser!.providerIds, contains(AppUser.appleProvider));
+    expect(find.byType(MainShell), findsOneWidget);
+  });
+
   testWidgets('Loading state blocks a second request', (
     WidgetTester tester,
   ) async {

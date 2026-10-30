@@ -9,7 +9,7 @@
 | 03_login_error.png | Рис. 3. Помилка входу від Firebase (`invalid-credential`) показана зрозумілим банером над кнопкою, без сирого коду помилки. |
 | 04_login_loading.png | Рис. 4. Стан завантаження: кнопка показує індикатор, поля лише для читання, повторне натискання не надсилає другий запит. |
 | 05_forgot_sent.png | Рис. 5. Відновлення пароля: нейтральне повідомлення «Check your email» (у проєкті ввімкнено email enumeration protection). |
-| 06_apple_dialog.png | Рис. 6. Вхід через Apple у цій збірці недоступний: інформаційний діалог без запиту й без індикатора завантаження. |
+| 06_apple_sheet.png | Рис. 6. Системне вікно «Sign in with Apple» після натискання кнопки Apple (знімається вручну на симуляторі/пристрої). |
 | 07_home_signed_in.png | Рис. 7. Відновлення сеансу: залогінений користувач одразу потрапляє на головний екран (`AuthGate` + `authStateChanges()`). |
 | 08_profile.png | Рис. 8. Профіль: ім'я та email беруться з Firebase-користувача (`userChanges()`). |
 | 09_profile_connected.png | Рис. 9. «Connected Accounts»: Email & Password — Linked, Google — можна під'єднати («Link»). |

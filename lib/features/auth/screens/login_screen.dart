@@ -21,7 +21,7 @@ import '../widgets/social_auth_row.dart';
 import '../widgets/social_sign_in.dart';
 
 /// Sign-in screen (FR1): e-mail/password via `AuthRepository`, Google with
-/// account linking, Apple placeholder.
+/// account linking, Sign in with Apple.
 ///
 /// After a successful sign-in nothing is pushed here — `AuthGate` sees the
 /// new user and shows the main shell (that also covers session restore).
@@ -77,11 +77,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _social(SocialProvider provider) async {
     if (_submitting) return;
-    // Apple only shows an info dialog: no request, so no loading state.
-    if (provider == SocialProvider.apple) {
-      await runSocialSignIn(context, provider);
-      return;
-    }
     setState(() {
       _submitting = true;
       _error = null;

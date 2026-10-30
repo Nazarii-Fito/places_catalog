@@ -4,7 +4,7 @@
 
 | # | Що зняти | Шлях у консолі | Що має бути видно | Вимога методички |
 |---|---|---|---|---|
-| 1 | Способи входу | **Build → Authentication → Sign-in method** | Email/Password — Enabled, Google — Enabled; Apple — не налаштовано | п. 3 |
+| 1 | Способи входу | **Build → Authentication → Sign-in method** | Email/Password — Enabled, Google — Enabled, Apple — Enabled | п. 3 |
 | 2 | Об'єднання акаунтів | **Authentication → Settings → User account linking** | «Link accounts that use the same email» | п. 3 (linking) |
 | 3 | Користувачі | **Authentication → Users** | тестові акаунти; у колонці Providers в одного — і пошта, і Google (після прив'язки) | п. 4 |
 | 4 | Аналітика: огляд | **Analytics → Dashboard** | користувачі, події за період | п. 1 |

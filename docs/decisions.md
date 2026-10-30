@@ -95,7 +95,7 @@
 ### UI-стани та форми
 - **`AppTextField` побудовано на `FormField<String>`:** `validator`, `errorText` (помилка сервера для поля, наприклад неправильний поточний пароль), `readOnly` (блокування під час відправки без «вицвітання»). Помилка — червона рамка й червоний текст замість helper.
 - **`PrimaryButton(isLoading)`:** `CupertinoActivityIndicator` замість тексту; повторні натискання ігноруються, поля в `readOnly`, тож другий запит відправити неможливо.
-- **`ErrorBanner`** — для помилок сервера над кнопкою. Діалоги — для `requires-recent-login`, помилки прив'язки й заглушки Apple.
+- **`ErrorBanner`** — для помилок сервера над кнопкою. Діалоги — для `requires-recent-login`, помилки прив'язки.
 - **`GlobalKey<FormState>`** — поле `State`. `autovalidateMode: onUserInteraction` вмикається після першої спроби відправки.
 - **Login** перевіряє пароль лише на заповненість; політика (≥ 8 символів і цифра) — для нових паролів (Register, Change Password).
 - **Forgot Password:** нейтральний текст «If an account exists…», бо в проєкті ввімкнено email enumeration protection.
@@ -105,7 +105,7 @@
   - email лише для читання;
   - старий варіант «Remove Photo / Use Default Photo» з ЛР №3 прибрано: фото тепер — це Firebase `photoURL`.
 - **Profile:** ім'я, email, фото й провайдери — з `userChanges()`; статистика лишається mock (`mockUser.stats`).
-- **Apple:** кнопка показує `CupertinoAlertDialog` «Sign in with Apple is not available in this build» (потрібен платний Apple Developer Program).
+- **Apple (змінено за вимогою методички):** спершу була заглушка-діалог. Після підтвердження підключено пакет `sign_in_with_apple ^8.2.0` (+ `crypto` для SHA-256). Нативний потік у `FirebaseAuthRepository.signInWithApple()`: випадковий nonce, Apple отримує його SHA-256, Firebase — сирий (`OAuthProvider('apple.com').credential`); ім'я Apple віддає лише при першому вході, тому зберігається тоді через `updateDisplayName`. Скасування — не помилка (`false`). Додано `ios/Runner/Runner.entitlements` (`com.apple.developer.applesignin`) і `CODE_SIGN_ENTITLEMENTS` у Xcode. Обмеження: на реальному пристрої capability «Sign in with Apple» потребує платного Apple Developer Program і Team у Xcode; на Simulator потрібен Apple ID, увійдений у Settings симулятора. Android не підтримується (потрібен веб-потік із Services ID) — там `appleUnavailable`.
 
 ### Analytics і Crashlytics
 - **`FirebaseAnalyticsObserver`** у `navigatorObservers` логує `screen_view` для іменованих маршрутів. Вкладки в `IndexedStack` логуються вручну (`logScreenView` у `MainShell._selectTab`).

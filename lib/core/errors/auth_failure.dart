@@ -18,6 +18,7 @@ enum AuthFailureType {
   credentialAlreadyInUse,
   providerAlreadyLinked,
   googleUnavailable,
+  appleUnavailable,
   unknown,
 }
 
@@ -78,6 +79,7 @@ class AuthFailure implements Exception {
     AuthFailureType.credentialAlreadyInUse => AppStrings.errorCredentialInUse,
     AuthFailureType.providerAlreadyLinked => AppStrings.errorAlreadyLinked,
     AuthFailureType.googleUnavailable => AppStrings.errorGoogleUnavailable,
+    AuthFailureType.appleUnavailable => AppStrings.errorAppleUnavailable,
     AuthFailureType.unknown => AppStrings.errorUnknown,
   };
 

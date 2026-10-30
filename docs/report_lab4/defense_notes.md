@@ -41,7 +41,7 @@
 - Федеративні провайдери (OAuth): Google — `signInWithGoogle`; Apple, Facebook, GitHub.
 - Телефон з SMS-кодом, анонімний вхід, email-посилання без пароля, власні (custom) токени з бекенду.
 
-У проєкті ввімкнено Email/Password і Google. Apple показано як платформоспецифічну опцію: кнопка відкриває діалог, бо потрібен платний Apple Developer Program (`lib/features/auth/widgets/social_sign_in.dart`).
+У проєкті ввімкнено Email/Password, Google та Apple. Apple працює нативно через пакет `sign_in_with_apple`: `FirebaseAuthRepository.signInWithApple()` генерує nonce, віддає Apple його SHA-256, а в Firebase передає сирий nonce та `identityToken` (`OAuthProvider('apple.com').credential`). Apple надає ім'я лише при першому вході, тому його зберігаємо одразу. Потрібен entitlement `com.apple.developer.applesignin` (`ios/Runner/Runner.entitlements`); для реального пристрою — платний Apple Developer Program.
 
 **15. Токени.**
 - **ID token** (JWT, ~1 год) підтверджує особу користувача для бекенду й правил безпеки.

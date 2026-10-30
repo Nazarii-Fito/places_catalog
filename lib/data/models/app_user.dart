@@ -12,6 +12,7 @@ class AppUser {
   /// Provider ids used by Firebase (`providerData[].providerId`).
   static const String passwordProvider = 'password';
   static const String googleProvider = 'google.com';
+  static const String appleProvider = 'apple.com';
 
   final String uid;
   final String? email;
