@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:places_catalog/app/app_scope.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:places_catalog/app/user_scope.dart';
 import 'package:places_catalog/app/routes/app_routes.dart';
 import 'package:places_catalog/core/theme/app_theme.dart';
 import 'package:places_catalog/data/repositories/auth_repository.dart';
+import 'package:places_catalog/data/repositories/in_memory_places_repository.dart';
+import 'package:places_catalog/data/repositories/in_memory_settings_repository.dart';
+import 'package:places_catalog/data/repositories/places_repository.dart';
+import 'package:places_catalog/data/repositories/settings_repository.dart';
 import 'package:places_catalog/data/repositories/fake_auth_repository.dart';
 import 'package:places_catalog/data/services/analytics_service.dart';
 import 'package:places_catalog/data/services/crash_reporter.dart';
@@ -40,26 +45,54 @@ void useIPhone(
   addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
 }
 
-/// Services for tests: [auth] defaults to a signed-in fake user, Analytics
-/// and Crashlytics do nothing.
-Widget withScope(Widget child, {AuthRepository? auth}) {
-  return AppScope(
-    auth: auth ?? FakeAuthRepository.signedIn(),
-    analytics: const NoopAnalyticsService(),
-    crashReporter: const NoopCrashReporter(),
+/// Services for tests: [auth] defaults to a signed-in fake user, [places]
+/// and [settings] to in-memory stores (demo catalog), Analytics and
+/// Crashlytics do nothing.
+Widget withScope(
+  Widget child, {
+  AuthRepository? auth,
+  PlacesRepository? places,
+  SettingsRepository? settings,
+}) {
+  return MultiRepositoryProvider(
+    providers: [
+      RepositoryProvider<AuthRepository>.value(
+        value: auth ?? FakeAuthRepository.signedIn(),
+      ),
+      RepositoryProvider<PlacesRepository>.value(
+        value: places ?? InMemoryPlacesRepository(),
+      ),
+      RepositoryProvider<SettingsRepository>.value(
+        value: settings ?? InMemorySettingsRepository(),
+      ),
+      RepositoryProvider<AnalyticsService>.value(
+        value: const NoopAnalyticsService(),
+      ),
+      RepositoryProvider<CrashReporter>.value(value: const NoopCrashReporter()),
+    ],
     child: child,
   );
 }
 
-/// The app's theme and router around [home], inside an [AppScope].
-Widget testApp(Widget home, {AuthRepository? auth}) {
+/// The app's theme and router around [home], inside the test services and
+/// the per-user blocs ([UserScope], like in the real app).
+Widget testApp(
+  Widget home, {
+  AuthRepository? auth,
+  PlacesRepository? places,
+  SettingsRepository? settings,
+}) {
   return withScope(
     MaterialApp(
       theme: AppTheme.light,
       home: home,
+      builder: (BuildContext context, Widget? child) =>
+          UserScope(child: child!),
       onGenerateRoute: AppRoutes.onGenerateRoute,
     ),
     auth: auth,
+    places: places,
+    settings: settings,
   );
 }
 

@@ -33,12 +33,7 @@ void main() {
     'Change Password': () => const ChangePasswordScreen(),
     'Main shell (Home)': () => const MainShell(),
     'Place Details': () => PlaceDetailsScreen(
-      args: PlaceDetailsArgs(
-        place: mockPlaces.first,
-        onToggleFavorite: (_) {},
-        onUpdate: (_) {},
-        onDelete: (_) {},
-      ),
+      args: PlaceDetailsArgs(placeId: mockPlaces.first.id),
     ),
     'Add Place': () => const PlaceFormScreen(),
     'Edit Place': () => PlaceFormScreen(initial: mockPlaces.first),

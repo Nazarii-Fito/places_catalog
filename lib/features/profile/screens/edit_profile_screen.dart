@@ -1,7 +1,11 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../../../data/repositories/auth_repository.dart';
+import '../../../data/services/analytics_service.dart';
+
 import 'package:flutter/material.dart';
 
-import '../../../app/app_scope.dart';
 import '../../../core/constants/app_assets.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/errors/auth_failure.dart';
@@ -33,7 +37,7 @@ class EditProfileScreen extends StatefulWidget {
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  late final AppUser _user = AppScope.of(context).auth.currentUser!;
+  late final AppUser _user = context.read<AuthRepository>().currentUser!;
   late final TextEditingController _nameController = TextEditingController(
     text: _user.displayName ?? '',
   );
@@ -71,7 +75,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     setState(() => _autovalidate = AutovalidateMode.onUserInteraction);
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    final AppScope scope = AppScope.of(context);
+    final AuthRepository auth = context.read<AuthRepository>();
+    final AnalyticsService analytics = context.read<AnalyticsService>();
     final NavigatorState navigator = Navigator.of(context);
     setState(() {
       _saving = true;
@@ -80,11 +85,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     bool saved = false;
     try {
       final String? photo = _photoUrl;
-      await scope.auth.updateProfile(
+      await auth.updateProfile(
         displayName: _nameController.text.trim(),
         photoUrl: photo == _user.photoUrl ? null : photo,
       );
-      await scope.analytics.logProfileUpdated(
+      await analytics.logProfileUpdated(
         photoSource: _useCustomLink
             ? 'custom'
             : _preset != null

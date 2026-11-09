@@ -318,6 +318,11 @@ abstract final class AppStrings {
       'Google sign-in did not return an account. Please try again.';
   static const String errorAppleUnavailable =
       'Sign in with Apple is not available on this device.';
+  static const String placesLoadError = 'Could not load your places.';
+  static const String placesSaveError =
+      'Your change could not be saved. Please try again.';
+  static const String placesSaveErrorTitle = 'Not Saved';
+  static const String retry = 'Retry';
   static const String errorUnknown = 'Something went wrong. Please try again.';
 
   // Validation (Form validators)

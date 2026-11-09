@@ -1,25 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../app/app_scope.dart';
 import '../../app/dev_launch_options.dart';
-import '../../app/routes/app_routes.dart';
 import '../../core/constants/app_assets.dart';
 import '../../core/constants/app_strings.dart';
 import '../../core/widgets/app_bottom_nav_bar.dart';
-import '../../data/mock/mock_places.dart';
-import '../../data/models/place.dart';
+import '../../core/widgets/app_confirm_dialog.dart';
+import '../../data/services/analytics_service.dart';
 import '../favorites/screens/favorites_screen.dart';
 import '../home/screens/home_screen.dart';
-import '../places/place_details_args.dart';
+import '../places/bloc/places_bloc.dart';
 import '../profile/screens/profile_screen.dart';
 
-/// Container of the three main tabs and owner of the catalog list.
+/// Container of the three main tabs.
 ///
-/// * [IndexedStack] keeps every tab alive, so scroll position and search
-///   text survive switching tabs.
-/// * The list of places is "lifted up" here: Home and Favorites receive it
-///   as a parameter and report changes through callbacks, so a heart tapped
-///   on Home is immediately visible on Favorites.
+/// [IndexedStack] keeps every tab alive, so scroll position and search text
+/// survive switching tabs. The current tab index is *ephemeral* UI state and
+/// stays here in `setState`; the catalog is app state and lives in
+/// `PlacesBloc`, which the tabs read themselves — nothing is passed down.
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
 
@@ -38,7 +36,6 @@ class _MainShellState extends State<MainShell> {
   ];
 
   int _currentIndex = DevLaunchOptions.initialTab;
-  List<Place> _places = List.of(mockPlaces);
 
   /// Screen names for Analytics: tabs live in an IndexedStack (no routes),
   /// so the navigator observer cannot see them — they are logged by hand.
@@ -47,85 +44,37 @@ class _MainShellState extends State<MainShell> {
   void _selectTab(int index) {
     if (index == _currentIndex) return;
     setState(() => _currentIndex = index);
-    AppScope.of(context).analytics.logScreenView(_tabScreenNames[index]);
-  }
-
-  void _toggleFavorite(Place place) {
-    AppScope.of(context).analytics.logPlaceFavoriteToggled(
-      placeId: place.id,
-      isFavorite: !place.isFavorite,
-    );
-    setState(() {
-      _places = [
-        for (final Place p in _places)
-          p.id == place.id ? p.copyWith(isFavorite: !p.isFavorite) : p,
-      ];
-    });
-  }
-
-  void _updatePlace(Place updated) {
-    setState(() {
-      _places = [
-        for (final Place p in _places) p.id == updated.id ? updated : p,
-      ];
-    });
-  }
-
-  void _deletePlace(Place place) {
-    setState(() {
-      _places = _places.where((Place p) => p.id != place.id).toList();
-    });
-  }
-
-  /// Opens the empty form; the returned place is appended to the catalog.
-  /// (Lab 5, phase 3 moves this into `PlacesBloc`.)
-  Future<void> _addPlace() async {
-    final Object? result = await Navigator.of(context)
-        .pushNamed(AppRoutes.addPlace);
-    if (result is Place && mounted) {
-      setState(() => _places = [..._places, result]);
-    }
-  }
-
-  void _openPlace(Place place) {
-    AppScope.of(context).analytics
-        .logPlaceOpened(placeId: place.id, category: place.category.name);
-    Navigator.of(context).pushNamed(
-      AppRoutes.placeDetails,
-      arguments: PlaceDetailsArgs(
-        place: place,
-        onToggleFavorite: _toggleFavorite,
-        onUpdate: _updatePlace,
-        onDelete: _deletePlace,
-      ),
-    );
+    context.read<AnalyticsService>().logScreenView(_tabScreenNames[index]);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      extendBody: true,
-      body: IndexedStack(
-        index: _currentIndex,
-        children: [
-          HomeScreen(
-            places: _places,
-            onToggleFavorite: _toggleFavorite,
-            onOpenPlace: _openPlace,
-            onAddPlace: _addPlace,
-          ),
-          FavoritesScreen(
-            places: _places,
-            onToggleFavorite: _toggleFavorite,
-            onOpenPlace: _openPlace,
-          ),
-          ProfileScreen(places: _places),
-        ],
-      ),
-      bottomNavigationBar: AppBottomNavBar(
-        items: _tabs,
-        currentIndex: _currentIndex,
-        onTap: _selectTab,
+    // A failed save (the list itself is intact) is reported once, here.
+    return BlocListener<PlacesBloc, PlacesState>(
+      listenWhen: (PlacesState before, PlacesState now) =>
+          now.status == PlacesStatus.loaded &&
+          now.errorMessage != null &&
+          before.errorMessage != now.errorMessage,
+      listener: (BuildContext context, PlacesState state) {
+        AppConfirmDialog.show(
+          context,
+          title: AppStrings.placesSaveErrorTitle,
+          message: state.errorMessage!,
+          confirmLabel: AppStrings.ok,
+          cancelLabel: null,
+        );
+      },
+      child: Scaffold(
+        extendBody: true,
+        body: IndexedStack(
+          index: _currentIndex,
+          children: const [HomeScreen(), FavoritesScreen(), ProfileScreen()],
+        ),
+        bottomNavigationBar: AppBottomNavBar(
+          items: _tabs,
+          currentIndex: _currentIndex,
+          onTap: _selectTab,
+        ),
       ),
     );
   }

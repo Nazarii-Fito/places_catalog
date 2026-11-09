@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../../../data/repositories/auth_repository.dart';
+import '../../../data/services/analytics_service.dart';
 import '../../../app/routes/app_routes.dart';
-import '../../../app/app_scope.dart';
 import '../../../core/constants/app_assets.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/errors/auth_failure.dart';
@@ -57,7 +60,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     });
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    final AppScope scope = AppScope.of(context);
+    final AuthRepository auth = context.read<AuthRepository>();
+    final AnalyticsService analytics = context.read<AnalyticsService>();
     final NavigatorState navigator = Navigator.of(context);
     setState(() {
       _submitting = true;
@@ -67,11 +71,11 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     bool changed = false;
     try {
       // Re-authenticates with the current password, then updates it.
-      await scope.auth.changePassword(
+      await auth.changePassword(
         currentPassword: _currentController.text,
         newPassword: _newController.text,
       );
-      await scope.analytics.logPasswordChanged();
+      await analytics.logPasswordChanged();
       changed = true;
     } on AuthFailure catch (failure) {
       if (!mounted) return;
@@ -99,20 +103,20 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       );
       navigator.pop();
     } else if (needsSignIn) {
-      await _askToSignInAgain(scope);
+      await _askToSignInAgain(auth);
     }
   }
 
   /// `requires-recent-login`: the session is too old for a sensitive
   /// change. Explain it and offer to log out and back in.
-  Future<void> _askToSignInAgain(AppScope scope) async {
+  Future<void> _askToSignInAgain(AuthRepository auth) async {
     final bool signOut = await AppConfirmDialog.show(
       context,
       title: AppStrings.signInAgainTitle,
       message: AppStrings.errorRecentLogin,
       confirmLabel: AppStrings.logOut,
     );
-    if (signOut) await scope.auth.signOut();
+    if (signOut) await auth.signOut();
   }
 
   @override

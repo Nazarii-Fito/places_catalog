@@ -5,6 +5,8 @@ import 'package:places_catalog/core/constants/app_assets.dart';
 import 'package:places_catalog/core/widgets/app_svg_icon.dart';
 import 'package:places_catalog/core/widgets/place_card.dart';
 import 'package:places_catalog/data/mock/mock_places.dart';
+import 'package:places_catalog/data/models/place.dart';
+import 'package:places_catalog/data/repositories/in_memory_places_repository.dart';
 import 'package:places_catalog/data/repositories/fake_auth_repository.dart';
 import 'package:places_catalog/features/auth/screens/login_screen.dart';
 import 'package:places_catalog/features/auth/screens/register_screen.dart';
@@ -75,16 +77,7 @@ void main() {
     WidgetTester tester,
   ) async {
     useIPhone(tester, size: const Size(390, 1400));
-    await tester.pumpWidget(
-      testApp(
-        HomeScreen(
-          places: mockPlaces,
-          onToggleFavorite: (_) {},
-          onOpenPlace: (_) {},
-          onAddPlace: () {},
-        ),
-      ),
-    );
+    await tester.pumpWidget(testApp(const HomeScreen()));
     await tester.pumpAndSettle();
     expect(find.byType(PlaceCard), findsNWidgets(mockPlaces.length));
 
@@ -161,16 +154,7 @@ void main() {
 
   testWidgets('Sort menu reorders Home cards', (WidgetTester tester) async {
     useIPhone(tester, size: const Size(390, 1400));
-    await tester.pumpWidget(
-      testApp(
-        HomeScreen(
-          places: mockPlaces,
-          onToggleFavorite: (_) {},
-          onOpenPlace: (_) {},
-          onAddPlace: () {},
-        ),
-      ),
-    );
+    await tester.pumpWidget(testApp(const HomeScreen()));
     await tester.pumpAndSettle();
     String firstCard() =>
         tester.widget<PlaceCard>(find.byType(PlaceCard).first).place.name;
@@ -362,14 +346,16 @@ void main() {
     useIPhone(tester);
     await tester.pumpWidget(
       testApp(
-        HomeScreen(
-          places: [
+        const HomeScreen(),
+        places: InMemoryPlacesRepository(
+          seed: [
             for (int i = 0; i < 30; i++)
-              mockPlaces.first.copyWith(name: 'Place $i'),
+              Place.fromJson({
+                ...mockPlaces.first.toJson(),
+                'id': 'p$i',
+                'name': 'Place $i',
+              }),
           ],
-          onToggleFavorite: (_) {},
-          onOpenPlace: (_) {},
-          onAddPlace: () {},
         ),
       ),
     );

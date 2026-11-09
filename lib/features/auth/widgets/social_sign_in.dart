@@ -1,6 +1,9 @@
 import 'package:flutter/cupertino.dart';
 
-import '../../../app/app_scope.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../../../data/repositories/auth_repository.dart';
+import '../../../data/services/analytics_service.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/errors/auth_failure.dart';
 import '../../../core/widgets/social_auth_button.dart';
@@ -22,10 +25,11 @@ Future<String?> runSocialSignIn(
 }
 
 Future<String?> _runApple(BuildContext context) async {
-  final AppScope scope = AppScope.of(context);
+  final AuthRepository auth = context.read<AuthRepository>();
+  final AnalyticsService analytics = context.read<AnalyticsService>();
   try {
-    final bool signedIn = await scope.auth.signInWithApple();
-    if (signedIn) await scope.analytics.logLogin('apple');
+    final bool signedIn = await auth.signInWithApple();
+    if (signedIn) await analytics.logLogin('apple');
     return null;
   } on AuthFailure catch (failure) {
     return failure.message;
@@ -33,10 +37,11 @@ Future<String?> _runApple(BuildContext context) async {
 }
 
 Future<String?> _runGoogle(BuildContext context) async {
-  final AppScope scope = AppScope.of(context);
+  final AuthRepository auth = context.read<AuthRepository>();
+  final AnalyticsService analytics = context.read<AnalyticsService>();
   try {
-    final bool signedIn = await scope.auth.signInWithGoogle();
-    if (signedIn) await scope.analytics.logLogin('google');
+    final bool signedIn = await auth.signInWithGoogle();
+    if (signedIn) await analytics.logLogin('google');
     return null;
   } on AuthFailure catch (failure) {
     final String? email = failure.email;
@@ -53,8 +58,8 @@ Future<String?> _runGoogle(BuildContext context) async {
     );
     if (password == null || password.isEmpty) return null;
     try {
-      await scope.auth.completeGoogleLink(email: email, password: password);
-      await scope.analytics.logAccountLinked('google.com');
+      await auth.completeGoogleLink(email: email, password: password);
+      await analytics.logAccountLinked('google.com');
       return null;
     } on AuthFailure catch (linkFailure) {
       return linkFailure.message;

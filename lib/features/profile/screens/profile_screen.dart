@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../../../app/app_scope.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../../../data/repositories/auth_repository.dart';
+import '../../../data/services/analytics_service.dart';
 import '../../../app/routes/app_routes.dart';
 import '../../../core/constants/app_assets.dart';
 import '../../../core/constants/app_strings.dart';
@@ -12,9 +15,11 @@ import '../../../core/widgets/app_nav_header.dart';
 import '../../../core/widgets/app_svg_icon.dart';
 import '../../../core/widgets/section_label.dart';
 import '../../../core/widgets/settings_tile.dart';
-import '../../../data/mock/mock_user.dart';
 import '../../../data/models/app_user.dart';
 import '../../../data/models/place.dart';
+import '../../../data/models/place_category.dart';
+import '../../../data/models/user.dart';
+import '../../places/bloc/places_bloc.dart';
 import '../widgets/activity_summary_card.dart';
 import '../widgets/connected_accounts_group.dart';
 import '../widgets/log_out_button.dart';
@@ -28,10 +33,7 @@ import '../widgets/version_footer.dart';
 /// `AuthRepository.userChanges()`, so edits from Edit Profile or a new
 /// Google link appear immediately.
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key, required this.places});
-
-  /// Current catalog — the source of the JSON export.
-  final List<Place> places;
+  const ProfileScreen({super.key});
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -45,7 +47,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     // Created once (not in build) so the StreamBuilder keeps its listener.
-    _user ??= AppScope.of(context).auth.userChanges();
+    _user ??= context.read<AuthRepository>().userChanges();
+  }
+
+  /// Counters computed from the real catalog (they were a mock before).
+  static UserStats _statsOf(List<Place> places) {
+    int count(bool Function(Place) test) => places.where(test).length;
+    return UserStats(
+      totalVisitedPlaces: places.length,
+      cafes: count((Place p) => p.category == PlaceCategory.cafe),
+      dining: count(
+        (Place p) =>
+            p.category == PlaceCategory.restaurant ||
+            p.category == PlaceCategory.fastFood,
+      ),
+      museums: count((Place p) => p.category == PlaceCategory.museum),
+      favorites: count((Place p) => p.isFavorite),
+    );
   }
 
   void _openChangePassword(AppUser user) {
@@ -65,11 +83,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _linkGoogle() async {
     if (_linkingGoogle) return;
-    final AppScope scope = AppScope.of(context);
+    final AuthRepository auth = context.read<AuthRepository>();
+    final AnalyticsService analytics = context.read<AnalyticsService>();
     setState(() => _linkingGoogle = true);
     try {
-      final bool linked = await scope.auth.linkGoogle();
-      if (linked) await scope.analytics.logAccountLinked('google.com');
+      final bool linked = await auth.linkGoogle();
+      if (linked) await analytics.logAccountLinked('google.com');
     } on AuthFailure catch (failure) {
       if (mounted) {
         await AppConfirmDialog.show(
@@ -86,7 +105,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _confirmLogOut() async {
-    final AppScope scope = AppScope.of(context);
+    final AuthRepository auth = context.read<AuthRepository>();
     final bool confirmed = await AppConfirmDialog.show(
       context,
       title: AppStrings.logOutDialogTitle,
@@ -97,7 +116,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (!confirmed) return;
     // AuthGate notices the signed-out state and shows Login.
     try {
-      await scope.auth.signOut();
+      await auth.signOut();
     } on AuthFailure catch (failure) {
       if (!mounted) return;
       await AppConfirmDialog.show(
@@ -117,7 +136,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: const AppNavHeader(title: AppStrings.tabProfile),
       body: StreamBuilder<AppUser?>(
         stream: _user,
-        initialData: AppScope.of(context).auth.currentUser,
+        initialData: context.read<AuthRepository>().currentUser,
         builder: (BuildContext context, AsyncSnapshot<AppUser?> snapshot) {
           final AppUser? user = snapshot.data;
           // Signed out: AuthGate is about to replace this screen.
@@ -140,8 +159,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Navigator.of(context).pushNamed(AppRoutes.editProfile),
               ),
               const SizedBox(height: AppSpacing.l),
-              // Visit statistics stay a mock until places live in Firestore.
-              ActivitySummaryCard(stats: mockUser.stats),
+              // Statistics are computed from the catalog held by PlacesBloc.
+              BlocBuilder<PlacesBloc, PlacesState>(
+                builder: (BuildContext context, PlacesState state) =>
+                    ActivitySummaryCard(stats: _statsOf(state.places)),
+              ),
               const SizedBox(height: AppSpacing.l),
               const SectionLabel(AppStrings.accountSettings),
               const SizedBox(height: AppSpacing.s),
@@ -176,7 +198,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     title: AppStrings.exportArchive,
                     onTap: () => Navigator.of(context).pushNamed(
                       AppRoutes.exportArchive,
-                      arguments: widget.places,
+                      arguments: context.read<PlacesBloc>().state.places,
                     ),
                   ),
                 ],

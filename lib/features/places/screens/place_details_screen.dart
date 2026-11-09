@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../app/routes/app_routes.dart';
 import '../../../core/constants/app_assets.dart';
@@ -18,6 +19,7 @@ import '../../../core/widgets/pressable_opacity.dart';
 import '../../../data/models/place.dart';
 import '../../../data/models/place_category.dart';
 import '../../../data/models/review.dart';
+import '../bloc/places_bloc.dart';
 import '../place_details_args.dart';
 import '../widgets/details_hero.dart';
 import '../widgets/details_sections.dart';
@@ -25,27 +27,38 @@ import '../widgets/rating_summary_card.dart';
 
 /// Place details (FR5, FR7): photo, ratings, notes, tags, map and delete.
 ///
-/// Data arrives through route arguments ([PlaceDetailsArgs]); favourite and
-/// delete actions are reported back to `MainShell` via callbacks.
-class PlaceDetailsScreen extends StatefulWidget {
+/// Only the place id arrives ([PlaceDetailsArgs]); the place itself is read
+/// from `PlacesBloc` with a `BlocSelector`, so the screen always shows the
+/// latest data (a heart tapped here is the same heart as on Home) and
+/// every action is an event sent to the bloc.
+class PlaceDetailsScreen extends StatelessWidget {
   const PlaceDetailsScreen({super.key, required this.args});
 
   final PlaceDetailsArgs args;
 
   @override
-  State<PlaceDetailsScreen> createState() => _PlaceDetailsScreenState();
+  Widget build(BuildContext context) {
+    return BlocSelector<PlacesBloc, PlacesState, Place?>(
+      selector: (PlacesState state) => state.byId(args.placeId),
+      builder: (BuildContext context, Place? place) {
+        // `null` for one frame after Delete, before the route is popped.
+        if (place == null) return const Scaffold();
+        return _PlaceDetailsView(place: place);
+      },
+    );
+  }
 }
 
-class _PlaceDetailsScreenState extends State<PlaceDetailsScreen> {
-  late Place _place = widget.args.place;
+class _PlaceDetailsView extends StatelessWidget {
+  const _PlaceDetailsView({required this.place});
 
-  void _toggleFavorite() {
-    widget.args.onToggleFavorite(_place);
-    setState(() => _place = _place.copyWith(isFavorite: !_place.isFavorite));
-  }
+  final Place place;
 
-  Future<void> _confirmDelete() async {
+  PlacesBloc _bloc(BuildContext context) => context.read<PlacesBloc>();
+
+  Future<void> _confirmDelete(BuildContext context) async {
     final NavigatorState navigator = Navigator.of(context);
+    final PlacesBloc bloc = _bloc(context);
     final bool confirmed = await AppConfirmDialog.show(
       context,
       title: AppStrings.deleteDialogTitle,
@@ -54,36 +67,45 @@ class _PlaceDetailsScreenState extends State<PlaceDetailsScreen> {
       isDestructive: true,
     );
     if (!confirmed) return;
-    widget.args.onDelete(_place);
+    bloc.add(PlaceDeleted(place.id));
     navigator.pop();
   }
 
-  /// Replaces the review with an edited copy and reports it to MainShell.
-  void _updateReview(Review review) {
-    setState(() => _place = _place.copyWith(review: review));
-    widget.args.onUpdate(_place);
-  }
+  /// Replaces the review with an edited copy.
+  void _updateReview(BuildContext context, Review review) =>
+      _bloc(context).add(PlaceUpdated(place.copyWith(review: review)));
 
-  void _saveNote(Review review, String text) =>
-      _updateReview(review.copyWith(textNote: text, updatedAt: DateTime.now()));
+  void _saveNote(BuildContext context, Review review, String text) =>
+      _updateReview(
+        context,
+        review.copyWith(textNote: text, updatedAt: DateTime.now()),
+      );
 
-  Future<void> _addTag(Review review) async {
+  Future<void> _addTag(BuildContext context, Review review) async {
+    final PlacesBloc bloc = _bloc(context);
     final String? tag = await showAddTagDialog(context);
     if (tag == null || review.tags.contains(tag)) return;
-    _updateReview(review.copyWith(tags: [...review.tags, tag]));
+    bloc.add(
+      PlaceUpdated(
+        place.copyWith(review: review.copyWith(tags: [...review.tags, tag])),
+      ),
+    );
   }
 
-  void _removeTag(Review review, String tag) => _updateReview(
-    review.copyWith(tags: review.tags.where((String t) => t != tag).toList()),
-  );
+  void _removeTag(BuildContext context, Review review, String tag) =>
+      _updateReview(
+        context,
+        review.copyWith(
+          tags: review.tags.where((String t) => t != tag).toList(),
+        ),
+      );
 
   /// Opens the shared form in edit mode and stores the result it returns.
-  Future<void> _editPlace() async {
+  Future<void> _editPlace(BuildContext context) async {
+    final PlacesBloc bloc = _bloc(context);
     final Object? result = await Navigator.of(context)
-        .pushNamed(AppRoutes.editPlace, arguments: _place);
-    if (result is! Place || !mounted) return;
-    setState(() => _place = result);
-    widget.args.onUpdate(result);
+        .pushNamed(AppRoutes.editPlace, arguments: place);
+    if (result is Place) bloc.add(PlaceUpdated(result));
   }
 
   // Opening Apple Maps needs a platform plugin (url_launcher), which is out
@@ -92,7 +114,7 @@ class _PlaceDetailsScreenState extends State<PlaceDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final Review? review = _place.review;
+    final Review? review = place.review;
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppNavHeader(
@@ -102,7 +124,7 @@ class _PlaceDetailsScreenState extends State<PlaceDetailsScreen> {
           button: true,
           label: AppStrings.editPlaceLabel,
           child: PressableOpacity(
-            onTap: _editPlace,
+            onTap: () => _editPlace(context),
             child: const SizedBox.square(
               dimension: AppSpacing.minTapTarget,
               child: Center(
@@ -124,10 +146,11 @@ class _PlaceDetailsScreenState extends State<PlaceDetailsScreen> {
             padding: EdgeInsets.only(top: insets.top),
             children: [
               DetailsHero(
-                image: _place.heroImage,
-                photosCount: _place.photosCount,
-                isFavorite: _place.isFavorite,
-                onToggleFavorite: _toggleFavorite,
+                image: place.heroImage,
+                photosCount: place.photosCount,
+                isFavorite: place.isFavorite,
+                onToggleFavorite: () =>
+                    _bloc(context).add(PlaceFavoriteToggled(place.id)),
               ),
               // The sheet overlaps the photo by 24 pt, like in Figma.
               Transform.translate(
@@ -135,7 +158,7 @@ class _PlaceDetailsScreenState extends State<PlaceDetailsScreen> {
                 child: _DetailsSheet(
                   bottomInset: insets.bottom,
                   children: [
-                    _TitleBlock(place: _place),
+                    _TitleBlock(place: place),
                     if (review != null) ...[
                       const SizedBox(height: AppSpacing.sm),
                       RatingSummaryCard(review: review),
@@ -143,22 +166,24 @@ class _PlaceDetailsScreenState extends State<PlaceDetailsScreen> {
                       NotesSection(
                         note: review.textNote,
                         updatedAt: review.updatedAt,
-                        onSave: (String text) => _saveNote(review, text),
+                        onSave: (String text) =>
+                            _saveNote(context, review, text),
                       ),
                       const SizedBox(height: AppSpacing.l),
                       TagsSection(
                         tags: review.tags,
-                        onAddTag: () => _addTag(review),
-                        onRemoveTag: (String tag) => _removeTag(review, tag),
+                        onAddTag: () => _addTag(context, review),
+                        onRemoveTag: (String tag) =>
+                            _removeTag(context, review, tag),
                       ),
                     ],
                     const SizedBox(height: 28),
                     LocationSection(
-                      label: _shortAddress(_place.address),
+                      label: _shortAddress(place.address),
                       onOpenMaps: _openMaps,
                     ),
                     const SizedBox(height: 28),
-                    _DeleteButton(onPressed: _confirmDelete),
+                    _DeleteButton(onPressed: () => _confirmDelete(context)),
                   ],
                 ),
               ),

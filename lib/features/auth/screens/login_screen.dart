@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../../../data/repositories/auth_repository.dart';
+import '../../../data/services/analytics_service.dart';
 import '../../../app/routes/app_routes.dart';
-import '../../../app/app_scope.dart';
 import '../../../core/constants/app_assets.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/errors/auth_failure.dart';
@@ -57,17 +60,18 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _autovalidate = AutovalidateMode.onUserInteraction);
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    final AppScope scope = AppScope.of(context);
+    final AuthRepository auth = context.read<AuthRepository>();
+    final AnalyticsService analytics = context.read<AnalyticsService>();
     setState(() {
       _submitting = true;
       _error = null;
     });
     try {
-      await scope.auth.signIn(
+      await auth.signIn(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
-      await scope.analytics.logLogin('password');
+      await analytics.logLogin('password');
     } on AuthFailure catch (failure) {
       if (mounted) setState(() => _error = failure.message);
     } finally {

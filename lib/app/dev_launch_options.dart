@@ -32,11 +32,7 @@ abstract final class DevLaunchOptions {
   static const bool demoForm = bool.fromEnvironment('DEMO_FORM');
 
   /// Used when Place Details is opened as the start screen (no caller to
-  /// pass arguments): shows the first mock place with inert callbacks.
-  static PlaceDetailsArgs get previewDetailsArgs => PlaceDetailsArgs(
-    place: mockPlaces.first,
-    onToggleFavorite: (_) {},
-    onUpdate: (_) {},
-    onDelete: (_) {},
-  );
+  /// pass arguments): shows the first mock place.
+  static PlaceDetailsArgs get previewDetailsArgs =>
+      PlaceDetailsArgs(placeId: mockPlaces.first.id);
 }

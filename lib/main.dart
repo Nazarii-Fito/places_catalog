@@ -4,13 +4,21 @@ import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app/app.dart';
-import 'app/app_scope.dart';
 import 'app/dev_launch_options.dart';
 import 'data/repositories/auth_repository.dart';
 import 'data/repositories/fake_auth_repository.dart';
 import 'data/repositories/firebase_auth_repository.dart';
+import 'data/repositories/in_memory_places_repository.dart';
+import 'data/repositories/in_memory_settings_repository.dart';
+import 'data/repositories/local_places_repository.dart';
+import 'data/repositories/places_repository.dart';
+import 'data/repositories/settings_repository.dart';
+import 'data/repositories/shared_prefs_settings_repository.dart';
 import 'data/services/analytics_service.dart';
 import 'data/services/crash_reporter.dart';
 import 'firebase_options.dart';
@@ -42,11 +50,32 @@ Future<void> main() async {
       ? _fakeAuth()
       : FirebaseAuthRepository(crashReporter: crashReporter);
 
+  // Screenshot mode must not touch the disk: memory repositories, with a
+  // short delay so the loading state is visible.
+  final bool fake = DevLaunchOptions.useFakeAuth;
+  final PlacesRepository places = fake
+      ? InMemoryPlacesRepository(delay: const Duration(milliseconds: 400))
+      : LocalPlacesRepository(
+          directory: getApplicationDocumentsDirectory,
+          crashReporter: crashReporter,
+        );
+  final SettingsRepository settings = fake
+      ? InMemorySettingsRepository()
+      : SharedPrefsSettingsRepository(await SharedPreferences.getInstance());
+
+  // Dependency injection: every service is provided once at the root and
+  // read with `context.read<T>()`; tests swap them for fakes.
   runApp(
-    AppScope(
-      auth: auth,
-      analytics: FirebaseAnalyticsService(FirebaseAnalytics.instance),
-      crashReporter: crashReporter,
+    MultiRepositoryProvider(
+      providers: [
+        RepositoryProvider<AuthRepository>.value(value: auth),
+        RepositoryProvider<PlacesRepository>.value(value: places),
+        RepositoryProvider<SettingsRepository>.value(value: settings),
+        RepositoryProvider<AnalyticsService>.value(
+          value: FirebaseAnalyticsService(FirebaseAnalytics.instance),
+        ),
+        RepositoryProvider<CrashReporter>.value(value: crashReporter),
+      ],
       child: const PlacesCatalogApp(),
     ),
   );

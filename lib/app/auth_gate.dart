@@ -1,5 +1,11 @@
 import 'dart:async';
 
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../data/repositories/auth_repository.dart';
+import '../data/services/analytics_service.dart';
+import '../data/services/crash_reporter.dart';
+
 import 'package:flutter/material.dart';
 
 import '../core/theme/app_colors.dart';
@@ -7,7 +13,6 @@ import '../core/widgets/app_logo.dart';
 import '../data/models/app_user.dart';
 import '../features/auth/screens/login_screen.dart';
 import '../features/shell/main_shell.dart';
-import 'app_scope.dart';
 
 /// Root of the app: shows Login or [MainShell] depending on Firebase Auth.
 ///
@@ -33,12 +38,14 @@ class _AuthGateState extends State<AuthGate> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_authState != null) return;
-    final AppScope scope = AppScope.of(context);
-    _authState = scope.auth.authStateChanges();
-    _sideEffects = scope.auth.authStateChanges().listen((AppUser? user) {
+    final AuthRepository auth = context.read<AuthRepository>();
+    final AnalyticsService analytics = context.read<AnalyticsService>();
+    final CrashReporter crash = context.read<CrashReporter>();
+    _authState = auth.authStateChanges();
+    _sideEffects = auth.authStateChanges().listen((AppUser? user) {
       final String? uid = user?.uid;
-      scope.analytics.setUserId(uid);
-      scope.crashReporter.setUserIdentifier(uid);
+      analytics.setUserId(uid);
+      crash.setUserIdentifier(uid);
       // Sign-in / sign-out from a pushed screen (Register, Forgot, …):
       // drop those routes so the gate's new root is visible.
       if (!_firstEvent && uid != _lastUid && mounted) {

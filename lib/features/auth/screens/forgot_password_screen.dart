@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../../../app/app_scope.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../../../data/repositories/auth_repository.dart';
+import '../../../data/services/analytics_service.dart';
 import '../../../core/constants/app_assets.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/errors/auth_failure.dart';
@@ -50,16 +53,15 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     setState(() => _autovalidate = AutovalidateMode.onUserInteraction);
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    final AppScope scope = AppScope.of(context);
+    final AuthRepository auth = context.read<AuthRepository>();
+    final AnalyticsService analytics = context.read<AnalyticsService>();
     setState(() {
       _submitting = true;
       _error = null;
     });
     try {
-      await scope.auth.sendPasswordResetEmail(
-        email: _emailController.text.trim(),
-      );
-      await scope.analytics.logPasswordResetRequested();
+      await auth.sendPasswordResetEmail(email: _emailController.text.trim());
+      await analytics.logPasswordResetRequested();
       if (mounted) setState(() => _linkSent = true);
     } on AuthFailure catch (failure) {
       if (mounted) setState(() => _error = failure.message);

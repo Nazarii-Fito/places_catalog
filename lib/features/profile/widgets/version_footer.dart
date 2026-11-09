@@ -1,7 +1,10 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../../../data/services/crash_reporter.dart';
+
 import 'package:flutter/foundation.dart';
 
-import '../../../app/app_scope.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -17,7 +20,7 @@ class VersionFooter extends StatelessWidget {
   const VersionFooter({super.key});
 
   Future<void> _openDeveloperMenu(BuildContext context) async {
-    final AppScope scope = AppScope.of(context);
+    final CrashReporter crash = context.read<CrashReporter>();
     final _DevAction? action = await showCupertinoModalPopup<_DevAction>(
       context: context,
       builder: (BuildContext context) => CupertinoActionSheet(
@@ -42,7 +45,7 @@ class VersionFooter extends StatelessWidget {
     );
     switch (action) {
       case _DevAction.nonFatal:
-        await scope.crashReporter.sendTestNonFatal();
+        await crash.sendTestNonFatal();
         if (!context.mounted) return;
         await AppConfirmDialog.show(
           context,
@@ -52,8 +55,8 @@ class VersionFooter extends StatelessWidget {
           cancelLabel: null,
         );
       case _DevAction.crash:
-        await scope.crashReporter.log('Developer menu: forced test crash');
-        scope.crashReporter.forceTestCrash();
+        await crash.log('Developer menu: forced test crash');
+        crash.forceTestCrash();
       case null:
         break;
     }

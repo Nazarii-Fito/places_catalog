@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../../../app/routes/app_routes.dart';
+import '../../places/bloc/places_bloc.dart';
+import '../../places/place_details_args.dart';
 
 import '../../../core/constants/app_strings.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -16,16 +21,7 @@ import '../../../data/models/place_category.dart';
 /// The chip row is generated from a `Map<PlaceCategory, int>` of counts,
 /// so it always reflects the current favourites ("Cafes (2)").
 class FavoritesScreen extends StatefulWidget {
-  const FavoritesScreen({
-    super.key,
-    required this.places,
-    required this.onToggleFavorite,
-    required this.onOpenPlace,
-  });
-
-  final List<Place> places;
-  final ValueChanged<Place> onToggleFavorite;
-  final ValueChanged<Place> onOpenPlace;
+  const FavoritesScreen({super.key});
 
   @override
   State<FavoritesScreen> createState() => _FavoritesScreenState();
@@ -57,11 +53,22 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     return q.isEmpty || place.name.toLowerCase().contains(q);
   }
 
+  void _openPlace(Place place) {
+    context.read<PlacesBloc>().add(PlaceOpened(place.id));
+    Navigator.of(context).pushNamed(
+      AppRoutes.placeDetails,
+      arguments: PlaceDetailsArgs(placeId: place.id),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final List<Place> favorites = widget.places
-        .where((Place p) => p.isFavorite)
-        .toList();
+    // Favorites is a *view* of the same catalog Home shows: one source of
+    // truth, so a heart tapped anywhere is reflected here at once.
+    final List<Place> favorites = context.select(
+      (PlacesBloc b) =>
+          b.state.places.where((Place p) => p.isFavorite).toList(),
+    );
     final Map<PlaceCategory, int> counts = _countByCategory(favorites);
     // A category whose last favourite was removed falls back to "All".
     final PlaceCategory? category = counts.containsKey(_category)
@@ -172,8 +179,10 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                         key: ValueKey<String>(place.id),
                         place: place,
                         variant: PlaceCardVariant.favorites,
-                        onTap: () => widget.onOpenPlace(place),
-                        onFavoriteToggle: () => widget.onToggleFavorite(place),
+                        onTap: () => _openPlace(place),
+                        onFavoriteToggle: () => context.read<PlacesBloc>().add(
+                          PlaceFavoriteToggled(place.id),
+                        ),
                       );
                     },
                   ),

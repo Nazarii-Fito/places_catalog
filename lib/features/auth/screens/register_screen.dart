@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../../../app/app_scope.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../../../data/repositories/auth_repository.dart';
+import '../../../data/services/analytics_service.dart';
 import '../../../core/constants/app_assets.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/errors/auth_failure.dart';
@@ -55,18 +58,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _autovalidate = AutovalidateMode.onUserInteraction);
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    final AppScope scope = AppScope.of(context);
+    final AuthRepository auth = context.read<AuthRepository>();
+    final AnalyticsService analytics = context.read<AnalyticsService>();
     setState(() {
       _submitting = true;
       _error = null;
     });
     try {
-      await scope.auth.signUp(
+      await auth.signUp(
         fullName: _nameController.text.trim(),
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
-      await scope.analytics.logSignUp('password');
+      await analytics.logSignUp('password');
       // AuthGate now shows the main shell and pops this screen.
     } on AuthFailure catch (failure) {
       if (mounted) setState(() => _error = failure.message);
