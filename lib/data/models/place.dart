@@ -22,6 +22,32 @@ class Place {
     this.photos = const [],
   });
 
+  /// Reads the map written by [toJson]. The category is stored by `name`, so
+  /// reordering the enum never corrupts saved data; an unknown name throws
+  /// [ArgumentError], which the repository treats as a damaged file.
+  factory Place.fromJson(Map<String, Object?> json) {
+    final Object? review = json['review'];
+    return Place(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      category: PlaceCategory.values.byName(json['category'] as String),
+      subtitle: json['subtitle'] as String,
+      address: json['address'] as String,
+      visitDate: DateTime.parse(json['visitDate'] as String),
+      coverImage: json['coverImage'] as String,
+      review: review == null
+          ? null
+          : Review.fromJson((review as Map<Object?, Object?>).cast()),
+      isFavorite: json['isFavorite'] as bool? ?? false,
+      latitude: (json['latitude'] as num?)?.toDouble(),
+      longitude: (json['longitude'] as num?)?.toDouble(),
+      photos: [
+        for (final Object? p in json['photos'] as List<Object?>? ?? const [])
+          PlacePhoto.fromJson((p as Map<Object?, Object?>).cast()),
+      ],
+    );
+  }
+
   final String id;
   final String name;
   final PlaceCategory category;
@@ -36,6 +62,22 @@ class Place {
   final double? latitude;
   final double? longitude;
   final List<PlacePhoto> photos;
+
+  /// Plain JSON map shared by local storage and the Export Archive screen.
+  Map<String, Object?> toJson() => {
+    'id': id,
+    'name': name,
+    'category': category.name,
+    'subtitle': subtitle,
+    'address': address,
+    'visitDate': visitDate.toIso8601String(),
+    'coverImage': coverImage,
+    'review': review?.toJson(),
+    'isFavorite': isFavorite,
+    'latitude': latitude,
+    'longitude': longitude,
+    'photos': [for (final PlacePhoto p in photos) p.toJson()],
+  };
 
   int get photosCount => photos.length;
 

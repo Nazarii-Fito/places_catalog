@@ -25,22 +25,9 @@ class ExportArchiveScreen extends StatelessWidget {
 
   final List<Place> places;
 
-  /// Plain map of one place — kept here because only the export needs it.
-  static Map<String, Object?> _placeToJson(Place place) => {
-    'id': place.id,
-    'name': place.name,
-    'category': place.category.name,
-    'address': place.address,
-    'visitDate': place.visitDate.toIso8601String().substring(0, 10),
-    'isFavorite': place.isFavorite,
-    'rating': place.review?.overallRating,
-    'note': place.review?.textNote,
-    'tags': place.review?.tags ?? const <String>[],
-  };
-
   String get _json => const JsonEncoder.withIndent('  ').convert({
     'app': AppStrings.appName,
-    'places': places.map(_placeToJson).toList(),
+    'places': places.map((Place p) => p.toJson()).toList(),
   });
 
   Future<void> _copy(BuildContext context, String json) async {

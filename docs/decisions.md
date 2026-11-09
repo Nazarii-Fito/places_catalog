@@ -122,3 +122,14 @@
 - **Порожня форма.** Демо-текст з Figma лишається лише з `--dart-define=DEMO_FORM=true` (скриншоти). Оцінки Food/Service/Atmosphere стартують із 3 зірок: `Review` вимагає оцінку ≥ 1.
 - **Новий `id`** — `DateTime.now().microsecondsSinceEpoch` (без зовнішніх пакетів). `subtitle` береться з назви категорії. Обкладинка — перше фото або `photoStorefront`.
 - **Тимчасово (до Фази 3):** створення й редагування повертаються в `MainShell` через колбеки; `PlacesBloc` їх замінить.
+
+## ЛР №5 — Фаза 2: дані й сховище
+
+- **Пакети:** `flutter_bloc ^9.1.1`, `equatable ^3.0.0`, `shared_preferences ^2.5.6`, `path_provider ^2.1.6`; dev: `bloc_test ^10.0.0`.
+- **Серіалізація вручну** (`toJson` / `fromJson` у `Place`, `Review`, `PlacePhoto`), без генерації коду. Категорія зберігається за `name` (перестановка enum не псує дані), дати — ISO-8601. Екран Export Archive використовує той самий `Place.toJson`.
+- **`PlacesRepository`** (interface): `loadPlaces(uid)`, `savePlace(uid, place)` (вставка або заміна), `deletePlace(uid, id)`. `uid` — параметр, бо репозиторій створюється до входу. Реалізації: `LocalPlacesRepository` (файл) і `InMemoryPlacesRepository` (тести, `FAKE_AUTH`, з `delay`/`failLoad` для станів loading/error).
+- **`LocalPlacesRepository`:** файл `places_<uid>.json`; перший запуск — сид із `mockPlaces`; запис через тимчасовий файл + `rename` (атомарно), записи ставляться в чергу; пошкоджений JSON → `recordError` (non-fatal) і відновлення сиду. Каталог приймається через конструктор.
+- **Чому файл, а не SharedPreferences:** каталог — зростаючий список вкладених об'єктів; SharedPreferences призначений для кількох малих пар ключ–значення. База даних (Hive/Drift) надмірна й заборонена брифом.
+- **`SettingsRepository`:** фільтр і сортування Home як імена enum (`<uid>.catalog.filter|sort`); дані шару не залежать від `HomeFilter`/`HomeSort`. Пошуковий запит не зберігається (ephemeral). Використано класичний `SharedPreferences` (`getInstance`), бо його підтримує `setMockInitialValues` з методички.
+- **Secure storage не додано:** токени тримає Firebase сам, секретів застосунок не зберігає.
+- Обмеження: фото — демо-ассети (файли — ЛР №6); синхронізації між пристроями немає.
