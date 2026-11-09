@@ -46,20 +46,35 @@ class Place {
   double get rating => review?.overallRating ?? 0;
 
   /// Returns a copy with the given fields replaced (immutable update).
-  Place copyWith({bool? isFavorite, Review? review}) {
+  ///
+  /// Every field is replaceable because the Edit Place form rebuilds the
+  /// whole record; `null` arguments keep the current value.
+  Place copyWith({
+    String? name,
+    PlaceCategory? category,
+    String? subtitle,
+    String? address,
+    DateTime? visitDate,
+    String? coverImage,
+    Review? review,
+    bool? isFavorite,
+    double? latitude,
+    double? longitude,
+    List<PlacePhoto>? photos,
+  }) {
     return Place(
       id: id,
-      name: name,
-      category: category,
-      subtitle: subtitle,
-      address: address,
-      visitDate: visitDate,
-      coverImage: coverImage,
+      name: name ?? this.name,
+      category: category ?? this.category,
+      subtitle: subtitle ?? this.subtitle,
+      address: address ?? this.address,
+      visitDate: visitDate ?? this.visitDate,
+      coverImage: coverImage ?? this.coverImage,
       review: review ?? this.review,
       isFavorite: isFavorite ?? this.isFavorite,
-      latitude: latitude,
-      longitude: longitude,
-      photos: photos,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      photos: photos ?? this.photos,
     );
   }
 }

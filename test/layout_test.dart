@@ -5,7 +5,7 @@ import 'package:places_catalog/features/auth/screens/login_screen.dart';
 import 'package:places_catalog/features/auth/screens/register_screen.dart';
 import 'package:places_catalog/data/mock/mock_places.dart';
 import 'package:places_catalog/features/places/place_details_args.dart';
-import 'package:places_catalog/features/places/screens/add_place_screen.dart';
+import 'package:places_catalog/features/places/screens/place_form_screen.dart';
 import 'package:places_catalog/features/places/screens/location_picker_screen.dart';
 import 'package:places_catalog/features/places/screens/place_details_screen.dart';
 import 'package:places_catalog/features/profile/screens/change_password_screen.dart';
@@ -40,7 +40,8 @@ void main() {
         onDelete: (_) {},
       ),
     ),
-    'Add Place': () => const AddPlaceScreen(),
+    'Add Place': () => const PlaceFormScreen(),
+    'Edit Place': () => PlaceFormScreen(initial: mockPlaces.first),
     'Location Picker': () => const LocationPickerScreen(),
     'Edit Profile': () => const EditProfileScreen(),
     'Export Archive': () => ExportArchiveScreen(places: mockPlaces),

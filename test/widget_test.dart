@@ -9,9 +9,10 @@ import 'package:places_catalog/data/repositories/fake_auth_repository.dart';
 import 'package:places_catalog/features/auth/screens/login_screen.dart';
 import 'package:places_catalog/features/auth/screens/register_screen.dart';
 import 'package:places_catalog/features/home/screens/home_screen.dart';
-import 'package:places_catalog/features/places/screens/add_place_screen.dart';
+import 'package:places_catalog/features/places/screens/place_form_screen.dart';
 import 'package:places_catalog/features/places/widgets/details_sections.dart';
 import 'package:places_catalog/features/places/screens/place_details_screen.dart';
+import 'package:places_catalog/core/widgets/nav_back_button.dart';
 import 'package:places_catalog/features/shell/main_shell.dart';
 
 import 'helpers/test_harness.dart';
@@ -80,6 +81,7 @@ void main() {
           places: mockPlaces,
           onToggleFavorite: (_) {},
           onOpenPlace: (_) {},
+          onAddPlace: () {},
         ),
       ),
     );
@@ -165,6 +167,7 @@ void main() {
           places: mockPlaces,
           onToggleFavorite: (_) {},
           onOpenPlace: (_) {},
+          onAddPlace: () {},
         ),
       ),
     );
@@ -253,11 +256,13 @@ void main() {
     expect(tester.getRect(box.first), before);
   });
 
-  testWidgets('Add Place uses the same tag control (dialog + remove)', (
+  testWidgets('Place form uses the same tag control (dialog + remove)', (
     WidgetTester tester,
   ) async {
     useIPhone(tester, size: const Size(390, 2000));
-    await tester.pumpWidget(testApp(const AddPlaceScreen()));
+    await tester.pumpWidget(
+      testApp(PlaceFormScreen(initial: mockPlaces.first)),
+    );
     await tester.pumpAndSettle();
     expect(find.text('#Espresso'), findsOneWidget);
 
@@ -271,6 +276,105 @@ void main() {
     await tester.tap(find.text('Add'));
     await tester.pumpAndSettle();
     expect(find.text('#Rooftop'), findsOneWidget);
+  });
+
+  testWidgets('New place form starts empty and validates before saving', (
+    WidgetTester tester,
+  ) async {
+    useIPhone(tester, size: const Size(390, 2000));
+    Object? saved;
+    await tester.pumpWidget(
+      testApp(
+        Builder(
+          builder: (BuildContext context) => TextButton(
+            onPressed: () async =>
+                saved = await Navigator.of(context).pushNamed('/add-place'),
+            child: const Text('open'),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    expect(find.text('Add Place'), findsOneWidget);
+    expect(find.text('Choose location'), findsOneWidget);
+
+    // Empty name and location: nothing is saved, both errors are shown.
+    await tester.tap(find.text('Save Place Record'));
+    await tester.pumpAndSettle();
+    expect(find.text('This field is required.'), findsOneWidget);
+    expect(find.text('Choose a location.'), findsOneWidget);
+    expect(find.byType(PlaceFormScreen), findsOneWidget);
+    expect(saved, isNull);
+  });
+
+  testWidgets('Valid form returns the new place and Home shows it', (
+    WidgetTester tester,
+  ) async {
+    useIPhone(tester, size: const Size(390, 2400));
+    await tester.pumpWidget(testApp(const MainShell()));
+    await tester.pumpAndSettle();
+    expect(find.text('Lumina Osteria'), findsNothing);
+
+    await tester.tap(find.bySemanticsLabel(RegExp('Add new place')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(EditableText).first, 'Lumina Osteria');
+    // The location comes from the picker screen; use its default result.
+    await tester.tap(find.text('Choose location'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Confirm Location'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Save Place Record'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(PlaceFormScreen), findsNothing);
+    expect(find.text('Lumina Osteria'), findsOneWidget);
+  });
+
+  testWidgets('Pencil on Details opens the form filled in; save updates', (
+    WidgetTester tester,
+  ) async {
+    useIPhone(tester, size: const Size(390, 2400));
+    await tester.pumpWidget(testApp(const MainShell()));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('The Daily Grind'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.bySemanticsLabel('Edit place'));
+    await tester.pumpAndSettle();
+    expect(find.text('Edit Place'), findsOneWidget);
+    expect(find.text('The Daily Grind'), findsOneWidget);
+
+    await tester.enterText(find.byType(EditableText).first, 'Daily Grind II');
+    await tester.tap(find.text('Save Changes'));
+    await tester.pumpAndSettle();
+    expect(find.byType(PlaceFormScreen), findsNothing);
+    expect(find.text('Daily Grind II'), findsOneWidget);
+
+    await tester.tap(find.byType(NavBackButton));
+    await tester.pumpAndSettle();
+    expect(find.text('Daily Grind II'), findsOneWidget);
+  });
+
+  testWidgets('Home builds its cards lazily (slivers)', (
+    WidgetTester tester,
+  ) async {
+    useIPhone(tester);
+    await tester.pumpWidget(
+      testApp(
+        HomeScreen(
+          places: [
+            for (int i = 0; i < 30; i++)
+              mockPlaces.first.copyWith(name: 'Place $i'),
+          ],
+          onToggleFavorite: (_) {},
+          onOpenPlace: (_) {},
+          onAddPlace: () {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(PlaceCard).evaluate().length, lessThan(30));
   });
 }
 

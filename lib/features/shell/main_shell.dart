@@ -77,6 +77,16 @@ class _MainShellState extends State<MainShell> {
     });
   }
 
+  /// Opens the empty form; the returned place is appended to the catalog.
+  /// (Lab 5, phase 3 moves this into `PlacesBloc`.)
+  Future<void> _addPlace() async {
+    final Object? result = await Navigator.of(context)
+        .pushNamed(AppRoutes.addPlace);
+    if (result is Place && mounted) {
+      setState(() => _places = [..._places, result]);
+    }
+  }
+
   void _openPlace(Place place) {
     AppScope.of(context).analytics
         .logPlaceOpened(placeId: place.id, category: place.category.name);
@@ -102,6 +112,7 @@ class _MainShellState extends State<MainShell> {
             places: _places,
             onToggleFavorite: _toggleFavorite,
             onOpenPlace: _openPlace,
+            onAddPlace: _addPlace,
           ),
           FavoritesScreen(
             places: _places,

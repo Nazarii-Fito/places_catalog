@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../app/routes/app_routes.dart';
 import '../../../core/constants/app_assets.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/theme/app_colors.dart';
@@ -76,6 +77,15 @@ class _PlaceDetailsScreenState extends State<PlaceDetailsScreen> {
     review.copyWith(tags: review.tags.where((String t) => t != tag).toList()),
   );
 
+  /// Opens the shared form in edit mode and stores the result it returns.
+  Future<void> _editPlace() async {
+    final Object? result = await Navigator.of(context)
+        .pushNamed(AppRoutes.editPlace, arguments: _place);
+    if (result is! Place || !mounted) return;
+    setState(() => _place = result);
+    widget.args.onUpdate(result);
+  }
+
   // Opening Apple Maps needs a platform plugin (url_launcher), which is out
   // of Lab 3 scope; the link is shown as designed but inert.
   void _openMaps() {}
@@ -85,9 +95,27 @@ class _PlaceDetailsScreenState extends State<PlaceDetailsScreen> {
     final Review? review = _place.review;
     return Scaffold(
       extendBodyBehindAppBar: true,
-      appBar: const AppNavHeader(
-        leading: NavBackButton(),
+      appBar: AppNavHeader(
+        leading: const NavBackButton(),
         title: AppStrings.placeDetails,
+        trailing: Semantics(
+          button: true,
+          label: AppStrings.editPlaceLabel,
+          child: PressableOpacity(
+            onTap: _editPlace,
+            child: const SizedBox.square(
+              dimension: AppSpacing.minTapTarget,
+              child: Center(
+                child: AppSvgIcon(
+                  AppAssets.iconPencil,
+                  width: 16,
+                  height: 16,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
       body: Builder(
         builder: (BuildContext context) {
@@ -214,7 +242,8 @@ class _TitleBlock extends StatelessWidget {
               ),
               text: AppStrings.categorySingular[place.category] ?? '',
             ),
-            _InfoChip(icon: const AppSvgIcon(AppAssets.iconPin), text: area),
+            if (area.isNotEmpty)
+              _InfoChip(icon: const AppSvgIcon(AppAssets.iconPin), text: area),
           ],
         ),
         const SizedBox(height: AppSpacing.ml),

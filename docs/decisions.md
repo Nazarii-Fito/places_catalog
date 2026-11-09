@@ -112,3 +112,13 @@
 - **Події:** `sign_up`, `login` (method: password / google), `password_reset_requested`, `password_changed`, `profile_updated {photo_source}`, `place_favorite_toggled {place_id, is_favorite: 0/1}` (булеві значення в параметрах не дозволені), `place_opened {place_id, category}`, `account_linked {provider}`.
 - **Crashlytics:** `FlutterError.onError = recordFlutterFatalError`, `PlatformDispatcher.instance.onError` → `recordError(fatal: true)`. `setUserIdentifier(uid)` — без email. Breadcrumbs `log('Auth: …')` без паролів і токенів.
 - **Тестові помилки:** довге натискання на футер «PlacesCatalog · Version 1.0» у Profile відкриває Developer Tools з «Send Test Non-Fatal Error» і «Force Test Crash». Меню працює лише не в release (`kReleaseMode`).
+
+## ЛР №5 — локальні дані та керування станом (Фаза 1)
+
+- **Список на слівер-ах.** Home і Favorites переведено з `ListView(children: …)` на `CustomScrollView`: заголовок, пошук і чипи — `SliverToBoxAdapter`, картки — `SliverList.separated` (створюються ліниво, ключ `ValueKey(place.id)`). Відступи та вигляд ті самі. `GridView` у дизайні немає (вертикальні картки), тож його не використано.
+- **Одна форма для створення й редагування.** `AddPlaceScreen` → `PlaceFormScreen(initial: Place?)`. Вона повертає готовий `Place` через `Navigator.pop`, а не пише в сховище сама: форма не знає, де зберігається каталог.
+- **Edit Place** у Figma немає. Точка входу — олівець у `AppNavHeader` на Place Details (`AppRoutes.editPlace`), форма в стилі Add Place; заголовок «Edit Place», кнопка «Save Changes».
+- **Валідація:** `Form` + `GlobalKey<FormState>`; назва 2–50 символів, локація обов'язкова. Рядки групи — кастомні контроли, тому їхні помилки показує `_FieldError` (`FormField`) під групою. Помилки з'являються після першої спроби зберегти.
+- **Порожня форма.** Демо-текст з Figma лишається лише з `--dart-define=DEMO_FORM=true` (скриншоти). Оцінки Food/Service/Atmosphere стартують із 3 зірок: `Review` вимагає оцінку ≥ 1.
+- **Новий `id`** — `DateTime.now().microsecondsSinceEpoch` (без зовнішніх пакетів). `subtitle` береться з назви категорії. Обкладинка — перше фото або `photoStorefront`.
+- **Тимчасово (до Фази 3):** створення й редагування повертаються в `MainShell` через колбеки; `PlacesBloc` їх замінить.

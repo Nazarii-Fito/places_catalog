@@ -3,7 +3,7 @@ import 'package:flutter/cupertino.dart';
 import '../../features/auth/screens/forgot_password_screen.dart';
 import '../../features/auth/screens/register_screen.dart';
 import '../../features/places/place_details_args.dart';
-import '../../features/places/screens/add_place_screen.dart';
+import '../../features/places/screens/place_form_screen.dart';
 import '../../features/places/screens/location_picker_screen.dart';
 import '../../features/places/screens/place_details_screen.dart';
 import '../../data/mock/mock_places.dart';
@@ -28,6 +28,7 @@ abstract final class AppRoutes {
   static const String changePassword = '/change-password';
   static const String placeDetails = '/place-details';
   static const String addPlace = '/add-place';
+  static const String editPlace = '/edit-place';
   static const String locationPicker = '/location-picker';
   static const String editProfile = '/edit-profile';
   static const String exportArchive = '/export-archive';
@@ -44,7 +45,11 @@ abstract final class AppRoutes {
             settings.arguments as PlaceDetailsArgs? ??
             DevLaunchOptions.previewDetailsArgs,
       ),
-      AppRoutes.addPlace => (_) => const AddPlaceScreen(),
+      AppRoutes.addPlace => (_) => const PlaceFormScreen(),
+      // The place being edited travels in `settings.arguments`.
+      AppRoutes.editPlace => (_) => PlaceFormScreen(
+        initial: settings.arguments as Place?,
+      ),
       AppRoutes.locationPicker => (_) => const LocationPickerScreen(),
       AppRoutes.editProfile => (_) => const EditProfileScreen(),
       AppRoutes.exportArchive => (_) => ExportArchiveScreen(

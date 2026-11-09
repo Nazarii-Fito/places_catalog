@@ -78,89 +78,107 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       body: Builder(
         builder: (BuildContext context) {
           final EdgeInsets insets = MediaQuery.paddingOf(context);
-          return ListView(
+          return CustomScrollView(
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: EdgeInsets.only(
-              top: insets.top,
-              bottom: insets.bottom + 20,
-            ),
-            children: [
-              // No "Edit" button: the heart on each card already removes a
-              // place from favourites, so a bulk-edit mode would duplicate it.
-              const _Padded(
-                child: SizedBox(
-                  height: AppSpacing.minTapTarget,
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      AppStrings.favoritesTitle,
-                      style: AppTextStyles.title1,
-                    ),
+            slivers: [
+              SliverPadding(
+                padding: EdgeInsets.only(top: insets.top),
+                sliver: SliverToBoxAdapter(
+                  child: Column(
+                    children: [
+                      // No "Edit" button: the heart on each card already
+                      // removes a place from favourites, so a bulk-edit mode
+                      // would duplicate it.
+                      const _Padded(
+                        child: SizedBox(
+                          height: AppSpacing.minTapTarget,
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              AppStrings.favoritesTitle,
+                              style: AppTextStyles.title1,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.s),
+                      _Padded(
+                        child: SearchField(
+                          controller: _searchController,
+                          hintText: AppStrings.searchFavoritesHint,
+                          onChanged: (String value) =>
+                              setState(() => _query = value),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.m),
+                      SizedBox(
+                        height: 40,
+                        child: ListView(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.screen,
+                          ),
+                          children: [
+                            CategoryChip(
+                              label:
+                                  '${AppStrings.filterAll} (${favorites.length})',
+                              selected: category == null,
+                              onTap: () => setState(() => _category = null),
+                            ),
+                            ...counts.entries.map(
+                              (MapEntry<PlaceCategory, int> entry) => Padding(
+                                padding: const EdgeInsets.only(
+                                  left: AppSpacing.sm,
+                                ),
+                                child: CategoryChip(
+                                  // Map lookup is nullable — fall back to the
+                                  // enum name if a label is ever missing.
+                                  label:
+                                      '${AppStrings.categoryPlural[entry.key] ?? entry.key.name} '
+                                      '(${entry.value})',
+                                  selected: category == entry.key,
+                                  onTap: () =>
+                                      setState(() => _category = entry.key),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.m),
+                    ],
                   ),
                 ),
               ),
-              const SizedBox(height: AppSpacing.s),
-              _Padded(
-                child: SearchField(
-                  controller: _searchController,
-                  hintText: AppStrings.searchFavoritesHint,
-                  onChanged: (String value) => setState(() => _query = value),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.m),
-              SizedBox(
-                height: 40,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
+              if (visible.isEmpty)
+                const SliverToBoxAdapter(
+                  child: EmptyState(
+                    title: AppStrings.noFavoritesTitle,
+                    subtitle: AppStrings.noFavoritesSubtitle,
+                  ),
+                )
+              else
+                SliverPadding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: AppSpacing.screen,
                   ),
-                  children: [
-                    CategoryChip(
-                      label: '${AppStrings.filterAll} (${favorites.length})',
-                      selected: category == null,
-                      onTap: () => setState(() => _category = null),
-                    ),
-                    ...counts.entries.map(
-                      (MapEntry<PlaceCategory, int> entry) => Padding(
-                        padding: const EdgeInsets.only(left: AppSpacing.sm),
-                        child: CategoryChip(
-                          // Map lookup is nullable — fall back to the enum
-                          // name if a label is ever missing.
-                          label:
-                              '${AppStrings.categoryPlural[entry.key] ?? entry.key.name} '
-                              '(${entry.value})',
-                          selected: category == entry.key,
-                          onTap: () => setState(() => _category = entry.key),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: AppSpacing.m),
-              if (visible.isEmpty)
-                const EmptyState(
-                  title: AppStrings.noFavoritesTitle,
-                  subtitle: AppStrings.noFavoritesSubtitle,
-                )
-              else
-                _Padded(
-                  child: Column(
-                    spacing: AppSpacing.m,
-                    children: visible
-                        .map(
-                          (Place place) => PlaceCard(
-                            place: place,
-                            variant: PlaceCardVariant.favorites,
-                            onTap: () => widget.onOpenPlace(place),
-                            onFavoriteToggle: () =>
-                                widget.onToggleFavorite(place),
-                          ),
-                        )
-                        .toList(),
+                  sliver: SliverList.separated(
+                    itemCount: visible.length,
+                    separatorBuilder: (_, _) =>
+                        const SizedBox(height: AppSpacing.m),
+                    itemBuilder: (BuildContext context, int index) {
+                      final Place place = visible[index];
+                      return PlaceCard(
+                        key: ValueKey<String>(place.id),
+                        place: place,
+                        variant: PlaceCardVariant.favorites,
+                        onTap: () => widget.onOpenPlace(place),
+                        onFavoriteToggle: () => widget.onToggleFavorite(place),
+                      );
+                    },
                   ),
                 ),
+              SliverToBoxAdapter(child: SizedBox(height: insets.bottom + 20)),
             ],
           );
         },

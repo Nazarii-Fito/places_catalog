@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../app/routes/app_routes.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/app_nav_header.dart';
@@ -26,11 +25,13 @@ class HomeScreen extends StatefulWidget {
     required this.places,
     required this.onToggleFavorite,
     required this.onOpenPlace,
+    required this.onAddPlace,
   });
 
   final List<Place> places;
   final ValueChanged<Place> onToggleFavorite;
   final ValueChanged<Place> onOpenPlace;
+  final VoidCallback onAddPlace;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -55,8 +56,6 @@ class _HomeScreenState extends State<HomeScreen> {
         place.subtitle.toLowerCase().contains(q);
   }
 
-  void _openAddPlace() => Navigator.of(context).pushNamed(AppRoutes.addPlace);
-
   @override
   Widget build(BuildContext context) {
     // A new list is filtered and sorted — widget.places stays untouched.
@@ -71,74 +70,92 @@ class _HomeScreenState extends State<HomeScreen> {
       body: Builder(
         builder: (BuildContext context) {
           final EdgeInsets insets = MediaQuery.paddingOf(context);
-          return ListView(
+          // CustomScrollView + slivers: the header blocks are single boxes
+          // (SliverToBoxAdapter) and the cards are built lazily by
+          // SliverList, so a long catalog only builds what is on screen.
+          return CustomScrollView(
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: EdgeInsets.only(
-              top: insets.top + AppSpacing.sm,
-              bottom: insets.bottom + 20,
-            ),
-            children: [
-              _Padded(child: HomeTitleRow(onAdd: _openAddPlace)),
-              const SizedBox(height: AppSpacing.m),
-              _Padded(
-                child: SearchField(
-                  controller: _searchController,
-                  hintText: AppStrings.searchHint,
-                  onChanged: (String value) => setState(() => _query = value),
+            slivers: [
+              SliverPadding(
+                padding: EdgeInsets.only(top: insets.top + AppSpacing.sm),
+                sliver: SliverToBoxAdapter(
+                  child: Column(
+                    children: [
+                      _Padded(child: HomeTitleRow(onAdd: widget.onAddPlace)),
+                      const SizedBox(height: AppSpacing.m),
+                      _Padded(
+                        child: SearchField(
+                          controller: _searchController,
+                          hintText: AppStrings.searchHint,
+                          onChanged: (String value) =>
+                              setState(() => _query = value),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.m),
+                      SizedBox(
+                        height: 40,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.screen,
+                          ),
+                          itemCount: HomeFilter.values.length,
+                          separatorBuilder: (_, _) =>
+                              const SizedBox(width: AppSpacing.sm),
+                          itemBuilder: (BuildContext context, int index) {
+                            final HomeFilter filter = HomeFilter.values[index];
+                            return CategoryChip(
+                              label: filter.label,
+                              selected: filter == _filter,
+                              onTap: () => setState(() => _filter = filter),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.m),
+                      _Padded(
+                        child: CatalogSummaryStrip(
+                          count: visible.length,
+                          sort: _sort,
+                          onSortSelected: (HomeSort sort) =>
+                              setState(() => _sort = sort),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.m),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(height: AppSpacing.m),
-              SizedBox(
-                height: 40,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
+              if (visible.isEmpty)
+                const SliverToBoxAdapter(
+                  child: EmptyState(
+                    title: AppStrings.emptyTitle,
+                    subtitle: AppStrings.emptySubtitle,
+                  ),
+                )
+              else
+                SliverPadding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: AppSpacing.screen,
                   ),
-                  itemCount: HomeFilter.values.length,
-                  separatorBuilder: (_, _) =>
-                      const SizedBox(width: AppSpacing.sm),
-                  itemBuilder: (BuildContext context, int index) {
-                    final HomeFilter filter = HomeFilter.values[index];
-                    return CategoryChip(
-                      label: filter.label,
-                      selected: filter == _filter,
-                      onTap: () => setState(() => _filter = filter),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: AppSpacing.m),
-              _Padded(
-                child: CatalogSummaryStrip(
-                  count: visible.length,
-                  sort: _sort,
-                  onSortSelected: (HomeSort sort) =>
-                      setState(() => _sort = sort),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.m),
-              if (visible.isEmpty)
-                const EmptyState(
-                  title: AppStrings.emptyTitle,
-                  subtitle: AppStrings.emptySubtitle,
-                )
-              else
-                _Padded(
-                  child: Column(
-                    spacing: AppSpacing.ml,
-                    children: visible
-                        .map(
-                          (Place place) => PlaceCard(
-                            place: place,
-                            onTap: () => widget.onOpenPlace(place),
-                            onFavoriteToggle: () =>
-                                widget.onToggleFavorite(place),
-                          ),
-                        )
-                        .toList(),
+                  sliver: SliverList.separated(
+                    itemCount: visible.length,
+                    separatorBuilder: (_, _) =>
+                        const SizedBox(height: AppSpacing.ml),
+                    itemBuilder: (BuildContext context, int index) {
+                      final Place place = visible[index];
+                      return PlaceCard(
+                        // A stable key keeps each card's state with its
+                        // place when the list is re-sorted or filtered.
+                        key: ValueKey<String>(place.id),
+                        place: place,
+                        onTap: () => widget.onOpenPlace(place),
+                        onFavoriteToggle: () => widget.onToggleFavorite(place),
+                      );
+                    },
                   ),
                 ),
+              SliverToBoxAdapter(child: SizedBox(height: insets.bottom + 20)),
             ],
           );
         },

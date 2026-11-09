@@ -22,6 +22,15 @@ abstract final class Validators {
     return null;
   }
 
+  /// Place name: 2–50 characters (same limits as a person's name).
+  static String? placeName(String? value) => fullName(value);
+
+  /// A place must have a location (picked on the map screen).
+  static String? location(String? value) =>
+      (value == null || value.trim().isEmpty)
+      ? AppStrings.validationLocation
+      : null;
+
   static String? email(String? value) {
     final String email = value?.trim() ?? '';
     if (email.isEmpty) return AppStrings.validationRequired;

@@ -151,6 +151,9 @@ abstract final class AppStrings {
 
   // Add place
   static const String addPlaceTitle = 'Add Place';
+  static const String editPlaceTitle = 'Edit Place';
+  static const String editPlaceLabel = 'Edit place';
+  static const String locationHint = 'Choose location';
   static const String addPhotos = 'Add Photos';
   static const String addPhotosHint = 'Upload up to 5 photos from library';
   static const String photosLeftSuffix = ' left';
@@ -318,6 +321,7 @@ abstract final class AppStrings {
   static const String errorUnknown = 'Something went wrong. Please try again.';
 
   // Validation (Form validators)
+  static const String validationLocation = 'Choose a location.';
   static const String validationRequired = 'This field is required.';
   static const String validationNameLength = 'Name must be 2–50 characters.';
   static const String validationEmail = 'Enter a valid email address.';

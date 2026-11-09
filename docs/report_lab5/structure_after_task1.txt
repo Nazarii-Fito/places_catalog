@@ -1,0 +1,53 @@
+Структура пакетів після завдання 1 (ЛР №5, Фаза 1: екрани й списки, без BLoC)
+Стан: каталог ще в MainShell (setState + колбеки); BLoC додається у Фазах 3–4.
+
+lib/
+  app/ (4 файлів)
+  app/routes/ (1 файлів)
+  core/ (0 файлів)
+  core/constants/ (2 файлів)
+  core/errors/ (1 файлів)
+  core/theme/ (6 файлів)
+  core/utils/ (1 файлів)
+  core/validation/ (1 файлів)
+  core/widgets/ (25 файлів)
+  data/ (0 файлів)
+  data/mock/ (2 файлів)
+  data/models/ (6 файлів)
+  data/repositories/ (3 файлів)
+  data/services/ (2 файлів)
+  features/ (0 файлів)
+  features/auth/ (0 файлів)
+  features/auth/screens/ (3 файлів)
+  features/auth/widgets/ (6 файлів)
+  features/favorites/ (0 файлів)
+  features/favorites/screens/ (1 файлів)
+  features/home/ (2 файлів)
+  features/home/screens/ (1 файлів)
+  features/home/widgets/ (2 файлів)
+  features/places/ (1 файлів)
+  features/places/screens/ (4 файлів)
+  features/places/widgets/ (6 файлів)
+  features/profile/ (0 файлів)
+  features/profile/screens/ (4 файлів)
+  features/profile/widgets/ (6 файлів)
+  features/shell/ (1 файлів)
+
+Змінено у Фазі 1:
+  features/places/screens/add_place_screen.dart -> place_form_screen.dart (PlaceFormScreen: створення + редагування, Form + GlobalKey)
+  features/home/screens/home_screen.dart       ListView -> CustomScrollView (SliverToBoxAdapter + SliverList.separated)
+  features/favorites/screens/favorites_screen.dart  те саме
+  features/places/screens/place_details_screen.dart  олівець Edit у AppNavHeader -> маршрут /edit-place
+  data/models/place.dart, review.dart          повний copyWith
+  core/validation/validators.dart              placeName, location
+
+test/
+  test:
+  auth_flow_test.dart
+  helpers
+  layout_test.dart
+  validators_test.dart
+  widget_test.dart
+  
+  test/helpers:
+  test_harness.dart

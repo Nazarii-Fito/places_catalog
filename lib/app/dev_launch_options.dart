@@ -27,6 +27,10 @@ abstract final class DevLaunchOptions {
   /// Index of the tab opened first in `MainShell` (0 — Home).
   static const int initialTab = int.fromEnvironment('INITIAL_TAB');
 
+  /// `--dart-define=DEMO_FORM=true` pre-fills the "Add Place" form with the
+  /// Figma demo content for screenshots; otherwise the form starts empty.
+  static const bool demoForm = bool.fromEnvironment('DEMO_FORM');
+
   /// Used when Place Details is opened as the start screen (no caller to
   /// pass arguments): shows the first mock place with inert callbacks.
   static PlaceDetailsArgs get previewDetailsArgs => PlaceDetailsArgs(
