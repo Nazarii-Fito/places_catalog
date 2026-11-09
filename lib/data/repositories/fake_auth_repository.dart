@@ -35,9 +35,20 @@ class FakeAuthRepository implements AuthRepository {
   @override
   Stream<AppUser?> userChanges() => _stream();
 
-  Stream<AppUser?> _stream() async* {
-    yield _user;
-    yield* _changes.stream;
+  /// Emits the current user first, then every change. The subscription to
+  /// the broadcast controller is made synchronously in `onListen`: with an
+  /// `async*` generator a change made right after `listen` could be lost.
+  Stream<AppUser?> _stream() {
+    late final StreamController<AppUser?> controller;
+    StreamSubscription<AppUser?>? changes;
+    controller = StreamController<AppUser?>(
+      onListen: () {
+        controller.add(_user);
+        changes = _changes.stream.listen(controller.add);
+      },
+      onCancel: () => changes?.cancel(),
+    );
+    return controller.stream;
   }
 
   @override

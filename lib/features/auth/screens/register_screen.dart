@@ -6,7 +6,6 @@ import '../../../data/repositories/auth_repository.dart';
 import '../../../data/services/analytics_service.dart';
 import '../../../core/constants/app_assets.dart';
 import '../../../core/constants/app_strings.dart';
-import '../../../core/errors/auth_failure.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/validation/validators.dart';
 import '../../../core/widgets/app_text_field.dart';
@@ -15,6 +14,8 @@ import '../../../core/widgets/error_banner.dart';
 import '../../../core/widgets/nav_back_button.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../../../core/widgets/social_auth_button.dart';
+import '../bloc/login_bloc.dart';
+import '../bloc/register_bloc.dart';
 import '../widgets/auth_header.dart';
 import '../widgets/auth_legal_text.dart';
 import '../widgets/auth_page.dart';
@@ -27,22 +28,47 @@ import '../widgets/social_sign_in.dart';
 /// The [Form] validates name, e-mail and password locally first; only a
 /// valid form reaches `AuthRepository.signUp`. Firebase errors (e.g. the
 /// e-mail is taken) appear in the [ErrorBanner].
-class RegisterScreen extends StatefulWidget {
+class RegisterScreen extends StatelessWidget {
   const RegisterScreen({super.key});
 
   @override
-  State<RegisterScreen> createState() => _RegisterScreenState();
+  Widget build(BuildContext context) {
+    // Two blocs: `RegisterBloc` for the form, and `LoginBloc` because the
+    // Google/Apple buttons on this screen sign in through it.
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider<RegisterBloc>(
+          create: (BuildContext context) => RegisterBloc(
+            auth: context.read<AuthRepository>(),
+            analytics: context.read<AnalyticsService>(),
+          ),
+        ),
+        BlocProvider<LoginBloc>(
+          create: (BuildContext context) => LoginBloc(
+            auth: context.read<AuthRepository>(),
+            analytics: context.read<AnalyticsService>(),
+          ),
+        ),
+      ],
+      child: const LoginLinkListener(child: _RegisterView()),
+    );
+  }
 }
 
-class _RegisterScreenState extends State<RegisterScreen> {
+class _RegisterView extends StatefulWidget {
+  const _RegisterView();
+
+  @override
+  State<_RegisterView> createState() => _RegisterViewState();
+}
+
+class _RegisterViewState extends State<_RegisterView> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
   AutovalidateMode _autovalidate = AutovalidateMode.disabled;
-  bool _submitting = false;
-  String? _error;
 
   @override
   void dispose() {
@@ -52,51 +78,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
-  Future<void> _submit() async {
-    if (_submitting) return;
+  void _submit() {
     FocusScope.of(context).unfocus();
     setState(() => _autovalidate = AutovalidateMode.onUserInteraction);
     if (!(_formKey.currentState?.validate() ?? false)) return;
-
-    final AuthRepository auth = context.read<AuthRepository>();
-    final AnalyticsService analytics = context.read<AnalyticsService>();
-    setState(() {
-      _submitting = true;
-      _error = null;
-    });
-    try {
-      await auth.signUp(
+    context.read<RegisterBloc>().add(
+      RegisterSubmitted(
         fullName: _nameController.text.trim(),
         email: _emailController.text.trim(),
         password: _passwordController.text,
-      );
-      await analytics.logSignUp('password');
-      // AuthGate now shows the main shell and pops this screen.
-    } on AuthFailure catch (failure) {
-      if (mounted) setState(() => _error = failure.message);
-    } finally {
-      if (mounted) setState(() => _submitting = false);
-    }
-  }
-
-  Future<void> _social(SocialProvider provider) async {
-    if (_submitting) return;
-    setState(() {
-      _submitting = true;
-      _error = null;
-    });
-    final String? error = await runSocialSignIn(context, provider);
-    if (mounted) {
-      setState(() {
-        _submitting = false;
-        _error = error;
-      });
-    }
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final String? error = _error;
+    final RegisterState register = context.watch<RegisterBloc>().state;
+    final LoginState login = context.watch<LoginBloc>().state;
+    // One "busy" flag for both flows, so neither can start while the other
+    // is running.
+    final bool submitting =
+        register is RegisterLoading || login is LoginLoading;
+    final String? error = switch ((register, login)) {
+      (RegisterFailure(:final message), _) => message,
+      (_, LoginFailure(:final message)) => message,
+      _ => null,
+    };
     // Gaps are tighter than in Figma so the form fits an iPhone 17 screen
     // without scrolling (see docs/decisions.md).
     return AuthPage(
@@ -126,7 +133,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 hintText: AppStrings.fullNameHint,
                 prefixIcon: AppAssets.iconPerson,
                 controller: _nameController,
-                readOnly: _submitting,
+                readOnly: submitting,
                 validator: Validators.fullName,
                 textInputAction: TextInputAction.next,
                 autofillHints: const [AutofillHints.name],
@@ -137,7 +144,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 hintText: AppStrings.emailHint,
                 prefixIcon: AppAssets.iconMail,
                 controller: _emailController,
-                readOnly: _submitting,
+                readOnly: submitting,
                 validator: Validators.email,
                 keyboardType: TextInputType.emailAddress,
                 textInputAction: TextInputAction.next,
@@ -150,7 +157,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 prefixIcon: AppAssets.iconLock,
                 controller: _passwordController,
                 isPassword: true,
-                readOnly: _submitting,
+                readOnly: submitting,
                 helperText: AppStrings.passwordHelper,
                 validator: Validators.newPassword,
                 textInputAction: TextInputAction.done,
@@ -167,13 +174,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ],
         PrimaryButton(
           label: AppStrings.createAccount,
-          isLoading: _submitting,
+          isLoading: submitting,
           onPressed: _submit,
         ),
         const SizedBox(height: AppSpacing.ml),
         const DividerWithText(text: AppStrings.orContinueWith),
         const SizedBox(height: AppSpacing.ml),
-        SocialAuthRow(onProviderSelected: _social),
+        SocialAuthRow(
+          onProviderSelected: submitting
+              ? (_) {}
+              : (SocialProvider p) => startSocialSignIn(context, p),
+        ),
       ],
       // Pinned to the bottom edge of the screen.
       footer: [

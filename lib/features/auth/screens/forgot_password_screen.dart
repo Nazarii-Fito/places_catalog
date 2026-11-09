@@ -6,7 +6,6 @@ import '../../../data/repositories/auth_repository.dart';
 import '../../../data/services/analytics_service.dart';
 import '../../../core/constants/app_assets.dart';
 import '../../../core/constants/app_strings.dart';
-import '../../../core/errors/auth_failure.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -16,6 +15,7 @@ import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/error_banner.dart';
 import '../../../core/widgets/nav_back_button.dart';
 import '../../../core/widgets/primary_button.dart';
+import '../bloc/forgot_password_cubit.dart';
 import '../widgets/auth_header.dart';
 import '../widgets/auth_switch_prompt.dart';
 
@@ -26,20 +26,32 @@ import '../widgets/auth_switch_prompt.dart';
 /// `build` describes the screen for the current value — `UI = f(state)`.
 /// The link is sent by Firebase (`sendPasswordResetEmail`); the text is
 /// neutral because email-enumeration protection hides unknown addresses.
-class ForgotPasswordScreen extends StatefulWidget {
+class ForgotPasswordScreen extends StatelessWidget {
   const ForgotPasswordScreen({super.key});
 
   @override
-  State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
+  Widget build(BuildContext context) {
+    return BlocProvider<ForgotPasswordCubit>(
+      create: (BuildContext context) => ForgotPasswordCubit(
+        auth: context.read<AuthRepository>(),
+        analytics: context.read<AnalyticsService>(),
+      ),
+      child: const _ForgotPasswordView(),
+    );
+  }
 }
 
-class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
+class _ForgotPasswordView extends StatefulWidget {
+  const _ForgotPasswordView();
+
+  @override
+  State<_ForgotPasswordView> createState() => _ForgotPasswordViewState();
+}
+
+class _ForgotPasswordViewState extends State<_ForgotPasswordView> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _emailController = TextEditingController();
   AutovalidateMode _autovalidate = AutovalidateMode.disabled;
-  bool _linkSent = false;
-  bool _submitting = false;
-  String? _error;
 
   @override
   void dispose() {
@@ -47,30 +59,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     super.dispose();
   }
 
-  Future<void> _sendLink() async {
-    if (_submitting) return;
+  void _sendLink() {
     FocusScope.of(context).unfocus();
     setState(() => _autovalidate = AutovalidateMode.onUserInteraction);
     if (!(_formKey.currentState?.validate() ?? false)) return;
-
-    final AuthRepository auth = context.read<AuthRepository>();
-    final AnalyticsService analytics = context.read<AnalyticsService>();
-    setState(() {
-      _submitting = true;
-      _error = null;
-    });
-    try {
-      await auth.sendPasswordResetEmail(email: _emailController.text.trim());
-      await analytics.logPasswordResetRequested();
-      if (mounted) setState(() => _linkSent = true);
-    } on AuthFailure catch (failure) {
-      if (mounted) setState(() => _error = failure.message);
-    } finally {
-      if (mounted) setState(() => _submitting = false);
-    }
+    context.read<ForgotPasswordCubit>().sendLink(_emailController.text.trim());
   }
 
-  void _showForm() => setState(() => _linkSent = false);
+  void _showForm() => context.read<ForgotPasswordCubit>().reset();
 
   void _backToLogin() => Navigator.of(context).pop();
 
@@ -82,6 +78,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final ForgotPasswordState state = context
+        .watch<ForgotPasswordCubit>()
+        .state;
+    final bool linkSent = state.status == ForgotPasswordStatus.sent;
+    final bool submitting = state.status == ForgotPasswordStatus.submitting;
+    final String? error = state.status == ForgotPasswordStatus.failure
+        ? state.message
+        : null;
     return Scaffold(
       body: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),
@@ -106,7 +110,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 ),
                 AnimatedSwitcher(
                   duration: const Duration(milliseconds: 250),
-                  child: _linkSent
+                  child: linkSent
                       ? _SentContent(
                           key: const ValueKey('sent'),
                           email: _email,
@@ -117,8 +121,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                           key: const ValueKey('form'),
                           formKey: _formKey,
                           autovalidate: _autovalidate,
-                          submitting: _submitting,
-                          error: _error,
+                          submitting: submitting,
+                          error: error,
                           controller: _emailController,
                           onSend: _sendLink,
                           onBackToLogin: _backToLogin,

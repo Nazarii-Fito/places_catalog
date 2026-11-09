@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:places_catalog/app/user_scope.dart';
+import 'package:places_catalog/features/session/bloc/auth_bloc.dart';
 import 'package:places_catalog/app/routes/app_routes.dart';
 import 'package:places_catalog/core/theme/app_theme.dart';
 import 'package:places_catalog/data/repositories/auth_repository.dart';
@@ -70,7 +71,12 @@ Widget withScope(
       ),
       RepositoryProvider<CrashReporter>.value(value: const NoopCrashReporter()),
     ],
-    child: child,
+    // The session bloc, like in main.dart.
+    child: BlocProvider<AuthBloc>(
+      create: (BuildContext context) =>
+          AuthBloc(context.read<AuthRepository>())..add(const AuthStarted()),
+      child: child,
+    ),
   );
 }
 

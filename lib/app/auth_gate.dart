@@ -1,82 +1,64 @@
-import 'dart:async';
-
-import 'package:flutter_bloc/flutter_bloc.dart';
-
-import '../data/repositories/auth_repository.dart';
-import '../data/services/analytics_service.dart';
-import '../data/services/crash_reporter.dart';
-
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../core/theme/app_colors.dart';
 import '../core/widgets/app_logo.dart';
-import '../data/models/app_user.dart';
+import '../data/services/analytics_service.dart';
+import '../data/services/crash_reporter.dart';
 import '../features/auth/screens/login_screen.dart';
+import '../features/session/bloc/auth_bloc.dart';
 import '../features/shell/main_shell.dart';
 
-/// Root of the app: shows Login or [MainShell] depending on Firebase Auth.
+/// Root of the app: shows Login or [MainShell] depending on [AuthBloc].
 ///
-/// * UI = f(auth state): a [StreamBuilder] on `authStateChanges()`.
-///   Firebase keeps the session on the device, so after a restart a
-///   signed-in user goes straight to [MainShell] — session restore.
+/// * UI = f(state): a `BlocBuilder` maps `AuthState` to a screen. Firebase
+///   keeps the session on the device, so after a restart a signed-in user
+///   goes straight to [MainShell] — session restore.
 /// * Side effects (clearing pushed auth screens, analytics / crash user id)
-///   run in a separate subscription, never inside `build()`.
-class AuthGate extends StatefulWidget {
+///   live in a `BlocListener`, never inside `build()`.
+class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
 
   @override
-  State<AuthGate> createState() => _AuthGateState();
-}
-
-class _AuthGateState extends State<AuthGate> {
-  Stream<AppUser?>? _authState;
-  StreamSubscription<AppUser?>? _sideEffects;
-  String? _lastUid;
-  bool _firstEvent = true;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_authState != null) return;
-    final AuthRepository auth = context.read<AuthRepository>();
-    final AnalyticsService analytics = context.read<AnalyticsService>();
-    final CrashReporter crash = context.read<CrashReporter>();
-    _authState = auth.authStateChanges();
-    _sideEffects = auth.authStateChanges().listen((AppUser? user) {
-      final String? uid = user?.uid;
-      analytics.setUserId(uid);
-      crash.setUserIdentifier(uid);
-      // Sign-in / sign-out from a pushed screen (Register, Forgot, …):
-      // drop those routes so the gate's new root is visible.
-      if (!_firstEvent && uid != _lastUid && mounted) {
-        Navigator.of(context).popUntil((Route<dynamic> r) => r.isFirst);
-      }
-      _firstEvent = false;
-      _lastUid = uid;
-    });
-  }
-
-  @override
-  void dispose() {
-    _sideEffects?.cancel();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return StreamBuilder<AppUser?>(
-      stream: _authState,
-      builder: (BuildContext context, AsyncSnapshot<AppUser?> snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const _Splash();
-        }
-        final AppUser? user = snapshot.data;
-        if (user == null) return const LoginScreen();
-        // A new key per user resets tab state after switching accounts.
-        return MainShell(key: ValueKey<String>(user.uid));
-      },
+    return MultiBlocListener(
+      listeners: [
+        // Who is signed in is tagged on Analytics and Crashlytics reports.
+        BlocListener<AuthBloc, AuthState>(
+          listenWhen: (AuthState before, AuthState now) =>
+              _uid(before) != _uid(now),
+          listener: (BuildContext context, AuthState state) {
+            final String? uid = _uid(state);
+            context.read<AnalyticsService>().setUserId(uid);
+            context.read<CrashReporter>().setUserIdentifier(uid);
+          },
+        ),
+        // Signed in / out from a pushed screen (Register, Forgot, …): drop
+        // those routes so the gate's new root is visible. Not for the very
+        // first state (session restore) — nothing is pushed yet.
+        BlocListener<AuthBloc, AuthState>(
+          listenWhen: (AuthState before, AuthState now) =>
+              before is! AuthInitial && _uid(before) != _uid(now),
+          listener: (BuildContext context, AuthState state) {
+            Navigator.of(context).popUntil((Route<dynamic> r) => r.isFirst);
+          },
+        ),
+      ],
+      child: BlocBuilder<AuthBloc, AuthState>(
+        builder: (BuildContext context, AuthState state) => switch (state) {
+          AuthInitial() => const _Splash(),
+          Unauthenticated() => const LoginScreen(),
+          // A new key per user resets tab state after switching accounts.
+          Authenticated(:final user) => MainShell(
+            key: ValueKey<String>(user.uid),
+          ),
+        },
+      ),
     );
   }
+
+  static String? _uid(AuthState state) =>
+      state is Authenticated ? state.user.uid : null;
 }
 
 /// Shown for the split second while Firebase restores the session.

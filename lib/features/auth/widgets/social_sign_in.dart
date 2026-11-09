@@ -1,69 +1,50 @@
 import 'package:flutter/cupertino.dart';
-
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../data/repositories/auth_repository.dart';
-import '../../../data/services/analytics_service.dart';
 import '../../../core/constants/app_strings.dart';
-import '../../../core/errors/auth_failure.dart';
 import '../../../core/widgets/social_auth_button.dart';
+import '../bloc/login_bloc.dart';
 
-/// Runs the chosen social sign-in from Login / Create Account.
-///
-/// Returns an error message for the banner, or `null` on success or
-/// cancel.
-Future<String?> runSocialSignIn(
-  BuildContext context,
-  SocialProvider provider,
-) async {
+/// Sends the tapped provider to `LoginBloc` (used by Login *and* Register,
+/// which both show the same Google/Apple buttons).
+void startSocialSignIn(BuildContext context, SocialProvider provider) {
+  final LoginBloc bloc = context.read<LoginBloc>();
   switch (provider) {
     case SocialProvider.apple:
-      return _runApple(context);
+      bloc.add(const LoginAppleRequested());
     case SocialProvider.google:
-      return _runGoogle(context);
+      bloc.add(const LoginGoogleRequested());
   }
 }
 
-Future<String?> _runApple(BuildContext context) async {
-  final AuthRepository auth = context.read<AuthRepository>();
-  final AnalyticsService analytics = context.read<AnalyticsService>();
-  try {
-    final bool signedIn = await auth.signInWithApple();
-    if (signedIn) await analytics.logLogin('apple');
-    return null;
-  } on AuthFailure catch (failure) {
-    return failure.message;
-  }
-}
+/// Reacts to `LoginLinkRequired`: Google's e-mail already has a password
+/// account, so ask for that password and let the bloc link Google to it —
+/// one account, two sign-in methods. A dialog is a side effect, which is
+/// exactly what `BlocListener` is for (not `BlocBuilder`).
+class LoginLinkListener extends StatelessWidget {
+  const LoginLinkListener({super.key, required this.child});
 
-Future<String?> _runGoogle(BuildContext context) async {
-  final AuthRepository auth = context.read<AuthRepository>();
-  final AnalyticsService analytics = context.read<AnalyticsService>();
-  try {
-    final bool signedIn = await auth.signInWithGoogle();
-    if (signedIn) await analytics.logLogin('google');
-    return null;
-  } on AuthFailure catch (failure) {
-    final String? email = failure.email;
-    if (failure.type != AuthFailureType.accountExistsWithDifferentCredential ||
-        email == null) {
-      return failure.message;
-    }
-    // Same e-mail already has a password account: confirm the password,
-    // then link Google to it — one account, two sign-in methods.
-    if (!context.mounted) return null;
-    final String? password = await showCupertinoDialog<String>(
-      context: context,
-      builder: (_) => _LinkPasswordDialog(email: email),
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocListener<LoginBloc, LoginState>(
+      listenWhen: (_, LoginState now) => now is LoginLinkRequired,
+      listener: (BuildContext context, LoginState state) async {
+        final String email = (state as LoginLinkRequired).email;
+        final LoginBloc bloc = context.read<LoginBloc>();
+        final String? password = await showCupertinoDialog<String>(
+          context: context,
+          builder: (_) => _LinkPasswordDialog(email: email),
+        );
+        if (password == null || password.isEmpty) {
+          bloc.add(const LoginGoogleLinkCancelled());
+        } else {
+          bloc.add(LoginGoogleLinkConfirmed(email: email, password: password));
+        }
+      },
+      child: child,
     );
-    if (password == null || password.isEmpty) return null;
-    try {
-      await auth.completeGoogleLink(email: email, password: password);
-      await analytics.logAccountLinked('google.com');
-      return null;
-    } on AuthFailure catch (linkFailure) {
-      return linkFailure.message;
-    }
   }
 }
 

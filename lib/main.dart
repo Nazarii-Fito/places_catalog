@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'app/app.dart';
 import 'app/dev_launch_options.dart';
 import 'data/repositories/auth_repository.dart';
+import 'features/session/bloc/auth_bloc.dart';
 import 'data/repositories/fake_auth_repository.dart';
 import 'data/repositories/firebase_auth_repository.dart';
 import 'data/repositories/in_memory_places_repository.dart';
@@ -76,7 +77,12 @@ Future<void> main() async {
         ),
         RepositoryProvider<CrashReporter>.value(value: crashReporter),
       ],
-      child: const PlacesCatalogApp(),
+      // The session bloc lives for the whole app run.
+      child: BlocProvider<AuthBloc>(
+        create: (BuildContext context) =>
+            AuthBloc(context.read<AuthRepository>())..add(const AuthStarted()),
+        child: const PlacesCatalogApp(),
+      ),
     ),
   );
 }

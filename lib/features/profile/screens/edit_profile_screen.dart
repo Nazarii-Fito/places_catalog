@@ -1,14 +1,10 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../data/repositories/auth_repository.dart';
-import '../../../data/services/analytics_service.dart';
-
 import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_assets.dart';
 import '../../../core/constants/app_strings.dart';
-import '../../../core/errors/auth_failure.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -22,6 +18,7 @@ import '../../../core/widgets/primary_button.dart';
 import '../../../core/widgets/section_label.dart';
 import '../../../core/widgets/user_avatar.dart';
 import '../../../data/models/app_user.dart';
+import '../bloc/profile_bloc.dart';
 import '../widgets/avatar_picker.dart';
 
 /// Edit profile: display name and photo, saved with
@@ -37,7 +34,7 @@ class EditProfileScreen extends StatefulWidget {
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  late final AppUser _user = context.read<AuthRepository>().currentUser!;
+  late final AppUser _user = context.read<ProfileBloc>().state.user!;
   late final TextEditingController _nameController = TextEditingController(
     text: _user.displayName ?? '',
   );
@@ -51,8 +48,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       : null;
   bool _useCustomLink = false;
   AutovalidateMode _autovalidate = AutovalidateMode.disabled;
-  bool _saving = false;
-  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    // An error from an earlier visit must not greet the user.
+    context.read<ProfileBloc>().add(const ProfileErrorDismissed());
+  }
 
   @override
   void dispose() {
@@ -69,41 +71,29 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   bool get _customLinkLooksValid =>
       Validators.httpsUrl(_linkController.text) == null;
 
-  Future<void> _save() async {
-    if (_saving) return;
+  void _save() {
     FocusScope.of(context).unfocus();
     setState(() => _autovalidate = AutovalidateMode.onUserInteraction);
     if (!(_formKey.currentState?.validate() ?? false)) return;
-
-    final AuthRepository auth = context.read<AuthRepository>();
-    final AnalyticsService analytics = context.read<AnalyticsService>();
-    final NavigatorState navigator = Navigator.of(context);
-    setState(() {
-      _saving = true;
-      _error = null;
-    });
-    bool saved = false;
-    try {
-      final String? photo = _photoUrl;
-      await auth.updateProfile(
+    final String? photo = _photoUrl;
+    // The bloc ignores a second tap while it is saving.
+    context.read<ProfileBloc>().add(
+      ProfileUpdated(
         displayName: _nameController.text.trim(),
         photoUrl: photo == _user.photoUrl ? null : photo,
-      );
-      await analytics.logProfileUpdated(
         photoSource: _useCustomLink
             ? 'custom'
             : _preset != null
             ? 'preset'
             : 'unchanged',
-      );
-      saved = true;
-    } on AuthFailure catch (failure) {
-      if (mounted) setState(() => _error = failure.message);
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
-    // Shown after the spinner stops, so it doesn't keep spinning behind.
-    if (!saved || !mounted) return;
+      ),
+    );
+  }
+
+  /// `saving → idle` means the save succeeded. The dialog is shown after
+  /// the spinner has stopped, so it doesn't keep spinning behind it.
+  Future<void> _onSaved(BuildContext context, ProfileState state) async {
+    final NavigatorState navigator = Navigator.of(context);
     await AppConfirmDialog.show(
       context,
       title: AppStrings.profileUpdatedTitle,
@@ -116,138 +106,149 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final String? error = _error;
+    final ProfileState profile = context.watch<ProfileBloc>().state;
+    final bool saving = profile.status == ProfileStatus.saving;
+    final String? error = profile.status == ProfileStatus.saveFailure
+        ? profile.message
+        : null;
     final String? previewUrl = _useCustomLink
         ? (_customLinkLooksValid ? _linkController.text.trim() : null)
         : _preset ?? _user.photoUrl;
-    return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: const AppNavHeader(
-        leading: NavBackButton(label: AppStrings.tabProfile),
-      ),
-      body: GestureDetector(
-        onTap: () => FocusScope.of(context).unfocus(),
-        child: Builder(
-          builder: (BuildContext context) {
-            final EdgeInsets insets = MediaQuery.paddingOf(context);
-            return Form(
-              key: _formKey,
-              autovalidateMode: _autovalidate,
-              child: ListView(
-                keyboardDismissBehavior:
-                    ScrollViewKeyboardDismissBehavior.onDrag,
-                padding: EdgeInsets.fromLTRB(
-                  AppSpacing.screen,
-                  insets.top + AppSpacing.sm,
-                  AppSpacing.screen,
-                  insets.bottom + AppSpacing.xl,
-                ),
-                children: [
-                  const SizedBox(height: 4.5),
-                  Text(
-                    AppStrings.accountOverline.toUpperCase(),
-                    style: AppTextStyles.overline,
+    return BlocListener<ProfileBloc, ProfileState>(
+      listenWhen: (before, now) =>
+          before.status == ProfileStatus.saving &&
+          now.status == ProfileStatus.idle,
+      listener: _onSaved,
+      child: Scaffold(
+        extendBodyBehindAppBar: true,
+        appBar: const AppNavHeader(
+          leading: NavBackButton(label: AppStrings.tabProfile),
+        ),
+        body: GestureDetector(
+          onTap: () => FocusScope.of(context).unfocus(),
+          child: Builder(
+            builder: (BuildContext context) {
+              final EdgeInsets insets = MediaQuery.paddingOf(context);
+              return Form(
+                key: _formKey,
+                autovalidateMode: _autovalidate,
+                child: ListView(
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  padding: EdgeInsets.fromLTRB(
+                    AppSpacing.screen,
+                    insets.top + AppSpacing.sm,
+                    AppSpacing.screen,
+                    insets.bottom + AppSpacing.xl,
                   ),
-                  const SizedBox(height: 1.5),
-                  const Text(
-                    AppStrings.editProfile,
-                    style: AppTextStyles.largeTitle,
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  Text(
-                    AppStrings.editProfileSubtitle,
-                    style: AppTextStyles.subheadline.copyWith(
-                      color: AppColors.textSecondary,
+                  children: [
+                    const SizedBox(height: 4.5),
+                    Text(
+                      AppStrings.accountOverline.toUpperCase(),
+                      style: AppTextStyles.overline,
                     ),
-                  ),
-                  const SizedBox(height: AppSpacing.xl),
-                  Center(
-                    child: _useCustomLink && previewUrl != null
-                        ? CustomPhotoPreview(url: previewUrl)
-                        : UserAvatar(
-                            imageUrl: previewUrl,
-                            initials: _user.initials,
-                          ),
-                  ),
-                  const SizedBox(height: AppSpacing.l),
-                  const SectionLabel(AppStrings.choosePhoto),
-                  const SizedBox(height: AppSpacing.m),
-                  AvatarPicker(
-                    urls: AppAssets.presetAvatarUrls,
-                    selected: _useCustomLink ? null : _preset,
-                    onSelected: (String url) => setState(() {
-                      _preset = url;
-                      _useCustomLink = false;
-                    }),
-                  ),
-                  const SizedBox(height: AppSpacing.m),
-                  Row(
-                    children: [
-                      const Expanded(
-                        child: Text(
-                          AppStrings.useCustomLink,
-                          style: AppTextStyles.body,
-                        ),
+                    const SizedBox(height: 1.5),
+                    const Text(
+                      AppStrings.editProfile,
+                      style: AppTextStyles.largeTitle,
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      AppStrings.editProfileSubtitle,
+                      style: AppTextStyles.subheadline.copyWith(
+                        color: AppColors.textSecondary,
                       ),
-                      CupertinoSwitch(
-                        value: _useCustomLink,
-                        activeTrackColor: AppColors.primary,
-                        onChanged: _saving
-                            ? null
-                            : (bool on) => setState(() => _useCustomLink = on),
+                    ),
+                    const SizedBox(height: AppSpacing.xl),
+                    Center(
+                      child: _useCustomLink && previewUrl != null
+                          ? CustomPhotoPreview(url: previewUrl)
+                          : UserAvatar(
+                              imageUrl: previewUrl,
+                              initials: _user.initials,
+                            ),
+                    ),
+                    const SizedBox(height: AppSpacing.l),
+                    const SectionLabel(AppStrings.choosePhoto),
+                    const SizedBox(height: AppSpacing.m),
+                    AvatarPicker(
+                      urls: AppAssets.presetAvatarUrls,
+                      selected: _useCustomLink ? null : _preset,
+                      onSelected: (String url) => setState(() {
+                        _preset = url;
+                        _useCustomLink = false;
+                      }),
+                    ),
+                    const SizedBox(height: AppSpacing.m),
+                    Row(
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            AppStrings.useCustomLink,
+                            style: AppTextStyles.body,
+                          ),
+                        ),
+                        CupertinoSwitch(
+                          value: _useCustomLink,
+                          activeTrackColor: AppColors.primary,
+                          onChanged: saving
+                              ? null
+                              : (bool on) =>
+                                    setState(() => _useCustomLink = on),
+                        ),
+                      ],
+                    ),
+                    if (_useCustomLink) ...[
+                      const SizedBox(height: AppSpacing.m),
+                      AppTextField(
+                        label: AppStrings.photoLinkLabel,
+                        hintText: AppStrings.photoLinkHint,
+                        prefixIcon: AppAssets.iconPhoto,
+                        prefixIconColor: AppColors.textTertiary,
+                        controller: _linkController,
+                        readOnly: saving,
+                        validator: Validators.httpsUrl,
+                        keyboardType: TextInputType.url,
+                        textInputAction: TextInputAction.done,
+                        // Rebuild so the preview follows the typed link.
+                        onChanged: (_) => setState(() {}),
                       ),
                     ],
-                  ),
-                  if (_useCustomLink) ...[
-                    const SizedBox(height: AppSpacing.m),
+                    const SizedBox(height: AppSpacing.xl),
                     AppTextField(
-                      label: AppStrings.photoLinkLabel,
-                      hintText: AppStrings.photoLinkHint,
-                      prefixIcon: AppAssets.iconPhoto,
-                      prefixIconColor: AppColors.textTertiary,
-                      controller: _linkController,
-                      readOnly: _saving,
-                      validator: Validators.httpsUrl,
-                      keyboardType: TextInputType.url,
+                      label: AppStrings.fullNameLabel,
+                      hintText: AppStrings.fullNameHint,
+                      prefixIcon: AppAssets.iconPerson,
+                      controller: _nameController,
+                      readOnly: saving,
+                      validator: Validators.fullName,
                       textInputAction: TextInputAction.done,
-                      // Rebuild so the preview follows the typed link.
-                      onChanged: (_) => setState(() {}),
+                      autofillHints: const [AutofillHints.name],
+                    ),
+                    const SizedBox(height: AppSpacing.l),
+                    AppTextField(
+                      label: AppStrings.emailLabel,
+                      hintText: AppStrings.emailHint,
+                      prefixIcon: AppAssets.iconMail,
+                      controller: _emailController,
+                      enabled: false,
+                      helperText: AppStrings.emailReadOnly,
+                    ),
+                    const SizedBox(height: AppSpacing.l + AppSpacing.sm),
+                    if (error != null) ...[
+                      ErrorBanner(message: error),
+                      const SizedBox(height: AppSpacing.m),
+                    ],
+                    PrimaryButton(
+                      label: AppStrings.saveChanges,
+                      isLoading: saving,
+                      onPressed: _save,
                     ),
                   ],
-                  const SizedBox(height: AppSpacing.xl),
-                  AppTextField(
-                    label: AppStrings.fullNameLabel,
-                    hintText: AppStrings.fullNameHint,
-                    prefixIcon: AppAssets.iconPerson,
-                    controller: _nameController,
-                    readOnly: _saving,
-                    validator: Validators.fullName,
-                    textInputAction: TextInputAction.done,
-                    autofillHints: const [AutofillHints.name],
-                  ),
-                  const SizedBox(height: AppSpacing.l),
-                  AppTextField(
-                    label: AppStrings.emailLabel,
-                    hintText: AppStrings.emailHint,
-                    prefixIcon: AppAssets.iconMail,
-                    controller: _emailController,
-                    enabled: false,
-                    helperText: AppStrings.emailReadOnly,
-                  ),
-                  const SizedBox(height: AppSpacing.l + AppSpacing.sm),
-                  if (error != null) ...[
-                    ErrorBanner(message: error),
-                    const SizedBox(height: AppSpacing.m),
-                  ],
-                  PrimaryButton(
-                    label: AppStrings.saveChanges,
-                    isLoading: _saving,
-                    onPressed: _save,
-                  ),
-                ],
-              ),
-            );
-          },
+                ),
+              );
+            },
+          ),
         ),
       ),
     );

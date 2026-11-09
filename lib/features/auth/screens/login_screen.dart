@@ -7,7 +7,6 @@ import '../../../data/services/analytics_service.dart';
 import '../../../app/routes/app_routes.dart';
 import '../../../core/constants/app_assets.dart';
 import '../../../core/constants/app_strings.dart';
-import '../../../core/errors/auth_failure.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/validation/validators.dart';
 import '../../../core/widgets/app_text_field.dart';
@@ -17,6 +16,7 @@ import '../../../core/widgets/error_banner.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../../../core/widgets/secondary_button.dart';
 import '../../../core/widgets/social_auth_button.dart';
+import '../bloc/login_bloc.dart';
 import '../widgets/auth_header.dart';
 import '../widgets/auth_legal_text.dart';
 import '../widgets/auth_page.dart';
@@ -28,14 +28,30 @@ import '../widgets/social_sign_in.dart';
 ///
 /// After a successful sign-in nothing is pushed here — `AuthGate` sees the
 /// new user and shows the main shell (that also covers session restore).
-class LoginScreen extends StatefulWidget {
+class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  Widget build(BuildContext context) {
+    // The bloc lives exactly as long as this screen.
+    return BlocProvider<LoginBloc>(
+      create: (BuildContext context) => LoginBloc(
+        auth: context.read<AuthRepository>(),
+        analytics: context.read<AnalyticsService>(),
+      ),
+      child: const LoginLinkListener(child: _LoginView()),
+    );
+  }
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginView extends StatefulWidget {
+  const _LoginView();
+
+  @override
+  State<_LoginView> createState() => _LoginViewState();
+}
+
+class _LoginViewState extends State<_LoginView> {
   // Created once per State — never in build(), or every rebuild would
   // create a new form and lose the field state.
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
@@ -43,8 +59,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _passwordController = TextEditingController();
 
   AutovalidateMode _autovalidate = AutovalidateMode.disabled;
-  bool _submitting = false;
-  String? _error;
 
   @override
   void dispose() {
@@ -53,50 +67,27 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  Future<void> _submit() async {
-    if (_submitting) return; // a second tap must not send a second request
+  void _submit() {
     FocusScope.of(context).unfocus();
     // After the first attempt, fields re-validate while the user types.
     setState(() => _autovalidate = AutovalidateMode.onUserInteraction);
     if (!(_formKey.currentState?.validate() ?? false)) return;
-
-    final AuthRepository auth = context.read<AuthRepository>();
-    final AnalyticsService analytics = context.read<AnalyticsService>();
-    setState(() {
-      _submitting = true;
-      _error = null;
-    });
-    try {
-      await auth.signIn(
+    // A tap during loading is ignored by the bloc itself.
+    context.read<LoginBloc>().add(
+      LoginSubmitted(
         email: _emailController.text.trim(),
         password: _passwordController.text,
-      );
-      await analytics.logLogin('password');
-    } on AuthFailure catch (failure) {
-      if (mounted) setState(() => _error = failure.message);
-    } finally {
-      if (mounted) setState(() => _submitting = false);
-    }
-  }
-
-  Future<void> _social(SocialProvider provider) async {
-    if (_submitting) return;
-    setState(() {
-      _submitting = true;
-      _error = null;
-    });
-    final String? error = await runSocialSignIn(context, provider);
-    if (mounted) {
-      setState(() {
-        _submitting = false;
-        _error = error;
-      });
-    }
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final String? error = _error;
+    // The state decides what is shown: spinner + read-only fields while
+    // loading, a banner on failure.
+    final LoginState state = context.watch<LoginBloc>().state;
+    final bool submitting = state is LoginLoading;
+    final String? error = state is LoginFailure ? state.message : null;
     // Gaps are tighter than in Figma so the whole form fits an iPhone 17
     // screen without scrolling (see docs/decisions.md).
     return AuthPage(
@@ -118,7 +109,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 hintText: AppStrings.emailHint,
                 prefixIcon: AppAssets.iconMail,
                 controller: _emailController,
-                readOnly: _submitting,
+                readOnly: submitting,
                 validator: Validators.email,
                 keyboardType: TextInputType.emailAddress,
                 textInputAction: TextInputAction.next,
@@ -131,7 +122,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 prefixIcon: AppAssets.iconLock,
                 controller: _passwordController,
                 isPassword: true,
-                readOnly: _submitting,
+                readOnly: submitting,
                 // Sign-in only checks presence; the policy applies to new
                 // passwords. Whether it is correct is Firebase's answer.
                 validator: Validators.required,
@@ -161,20 +152,24 @@ class _LoginScreenState extends State<LoginScreen> {
           const SizedBox(height: AppSpacing.sm),
         PrimaryButton(
           label: AppStrings.logIn,
-          isLoading: _submitting,
+          isLoading: submitting,
           onPressed: _submit,
         ),
         const SizedBox(height: AppSpacing.m),
         SecondaryButton(
           label: AppStrings.createAccount,
-          onPressed: _submitting
+          onPressed: submitting
               ? null
               : () => Navigator.of(context).pushNamed(AppRoutes.register),
         ),
         const SizedBox(height: 20),
         const DividerWithText(text: AppStrings.orContinueWith),
         const SizedBox(height: 20),
-        SocialAuthRow(onProviderSelected: _social),
+        SocialAuthRow(
+          onProviderSelected: submitting
+              ? (_) {}
+              : (SocialProvider p) => startSocialSignIn(context, p),
+        ),
       ],
       // Pinned to the bottom edge of the screen.
       footer: const [
