@@ -264,8 +264,12 @@ class _PlaceFormScreenState extends State<PlaceFormScreen> {
                           textAlign: TextAlign.right,
                           style: AppTextStyles.body,
                           onTapOutside: (_) => FocusScope.of(context).unfocus(),
-                          decoration: const InputDecoration.collapsed(
+                          decoration: InputDecoration.collapsed(
                             hintText: AppStrings.placeNameHint,
+                            // A hint must look like a hint, not like a value.
+                            hintStyle: AppTextStyles.body.copyWith(
+                              color: AppColors.textTertiary,
+                            ),
                           ),
                         ),
                       ),

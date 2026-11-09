@@ -55,7 +55,10 @@ Future<void> main() async {
   // short delay so the loading state is visible.
   final bool fake = DevLaunchOptions.useFakeAuth;
   final PlacesRepository places = fake
-      ? InMemoryPlacesRepository(delay: const Duration(milliseconds: 400))
+      ? InMemoryPlacesRepository(
+          delay: const Duration(milliseconds: DevLaunchOptions.fakeLoadDelayMs),
+          failLoad: DevLaunchOptions.fakeLoadFail,
+        )
       : LocalPlacesRepository(
           directory: getApplicationDocumentsDirectory,
           crashReporter: crashReporter,

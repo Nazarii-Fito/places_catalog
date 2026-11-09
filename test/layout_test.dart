@@ -13,6 +13,9 @@ import 'package:places_catalog/features/profile/screens/edit_profile_screen.dart
 import 'package:places_catalog/features/profile/screens/export_archive_screen.dart';
 import 'package:places_catalog/features/shell/main_shell.dart';
 
+import 'package:places_catalog/data/repositories/in_memory_places_repository.dart';
+import 'package:places_catalog/data/repositories/places_repository.dart';
+
 import 'helpers/test_harness.dart';
 
 /// Checks that no screen throws a RenderFlex overflow ("yellow-black
@@ -71,6 +74,8 @@ void main() {
     }
   }
 
+  homeStateLayoutTests();
+
   testWidgets('Forgot Password success state fits iPhone SE', (
     WidgetTester tester,
   ) async {
@@ -93,5 +98,39 @@ void main() {
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
     });
+  }
+}
+
+/// Home's loading, error and empty states must also fit every screen size
+/// and Dynamic Type setting (Lab 5).
+void homeStateLayoutTests() {
+  const Map<String, Size> devices = {
+    'iPhone SE': Size(375, 667),
+    'iPhone 17 Pro Max': Size(440, 956),
+  };
+  for (final MapEntry<String, Size> device in devices.entries) {
+    for (final double scale in [1.0, 1.2]) {
+      final Map<String, PlacesRepository> repos = {
+        'loading': InMemoryPlacesRepository(delay: const Duration(days: 1)),
+        'error': InMemoryPlacesRepository(failLoad: true),
+        'empty catalog': InMemoryPlacesRepository(seed: const []),
+      };
+      for (final MapEntry<String, PlacesRepository> state in repos.entries) {
+        testWidgets('Home ${state.key} fits ${device.key} @ text x$scale', (
+          WidgetTester tester,
+        ) async {
+          useIPhone(tester, size: device.value, textScale: scale);
+          await tester.pumpWidget(
+            testApp(const MainShell(), places: state.value),
+          );
+          // A pending 1-day timer (loading) must not be "settled" away.
+          await tester.pump(const Duration(milliseconds: 100));
+          await tester.pump(const Duration(milliseconds: 100));
+          expect(tester.takeException(), isNull);
+          // Let the simulated slow load finish: no timer may outlive the test.
+          await tester.pump(const Duration(days: 1));
+        });
+      }
+    }
   }
 }

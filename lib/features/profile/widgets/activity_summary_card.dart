@@ -9,7 +9,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/app_svg_icon.dart';
 import '../../../core/widgets/stat_tile.dart';
-import '../../../data/models/user.dart';
+import '../../../data/models/user_stats.dart';
 
 /// "Archived Catalog — Total Visited Places 42" card with four stat tiles.
 class ActivitySummaryCard extends StatelessWidget {

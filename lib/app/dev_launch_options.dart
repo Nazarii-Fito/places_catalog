@@ -27,6 +27,16 @@ abstract final class DevLaunchOptions {
   /// Index of the tab opened first in `MainShell` (0 — Home).
   static const int initialTab = int.fromEnvironment('INITIAL_TAB');
 
+  /// Screenshot mode only: how long the in-memory catalog "loads", so the
+  /// loading state can be captured (`FAKE_LOAD_DELAY_MS=60000`).
+  static const int fakeLoadDelayMs = int.fromEnvironment(
+    'FAKE_LOAD_DELAY_MS',
+    defaultValue: 400,
+  );
+
+  /// Screenshot mode only: make loading fail to capture the error state.
+  static const bool fakeLoadFail = bool.fromEnvironment('FAKE_LOAD_FAIL');
+
   /// `--dart-define=DEMO_FORM=true` pre-fills the "Add Place" form with the
   /// Figma demo content for screenshots; otherwise the form starts empty.
   static const bool demoForm = bool.fromEnvironment('DEMO_FORM');

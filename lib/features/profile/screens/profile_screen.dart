@@ -15,7 +15,7 @@ import '../../../core/widgets/settings_tile.dart';
 import '../../../data/models/app_user.dart';
 import '../../../data/models/place.dart';
 import '../../../data/models/place_category.dart';
-import '../../../data/models/user.dart';
+import '../../../data/models/user_stats.dart';
 import '../../places/bloc/places_bloc.dart';
 import '../../session/bloc/auth_bloc.dart';
 import '../bloc/profile_bloc.dart';
