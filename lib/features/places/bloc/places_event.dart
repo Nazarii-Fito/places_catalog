@@ -63,3 +63,21 @@ final class PlaceOpened extends PlacesEvent {
   @override
   List<Object?> get props => [placeId];
 }
+
+/// Internal: the repository's live stream delivered a new catalog.
+final class _PlacesArrived extends PlacesEvent {
+  const _PlacesArrived(this.places);
+
+  final List<Place> places;
+
+  @override
+  List<Object?> get props => [places];
+}
+
+/// Internal: the live stream reported an error.
+final class _PlacesStreamFailed extends PlacesEvent {
+  const _PlacesStreamFailed(this.error, this.stack);
+
+  final Object error;
+  final StackTrace stack;
+}

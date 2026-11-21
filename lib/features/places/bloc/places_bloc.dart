@@ -2,11 +2,13 @@
 // formals.
 // ignore_for_file: prefer_initializing_formals
 
-import 'package:flutter_bloc/flutter_bloc.dart';
+import 'dart:async';
+
 import 'package:equatable/equatable.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/constants/app_strings.dart';
+import '../../../core/errors/places_failure.dart';
 import '../../../data/models/place.dart';
 import '../../../data/repositories/places_repository.dart';
 import '../../../data/services/analytics_service.dart';
@@ -18,10 +20,12 @@ part 'places_state.dart';
 /// Owns the catalog of one signed-in user (app state shared by Home,
 /// Favorites, Details and Profile).
 ///
-/// Cycle: the UI adds an [PlacesEvent] → the handler talks to the
-/// [PlacesRepository] (disk) → `emit` publishes a *new* [PlacesState] →
-/// `BlocBuilder`s rebuild. The list is never mutated in place, so
-/// Equatable can tell that something changed.
+/// Cycle: the UI adds a [PlacesEvent] → the handler talks to the
+/// [PlacesRepository] → the repository's **live stream** reports the new
+/// list → `emit` publishes a new [PlacesState] → `BlocBuilder`s rebuild.
+/// The list is never edited in place, and the bloc never assumes a write
+/// "worked": it shows what the repository says is stored, so a change from
+/// another device appears the same way as the user's own.
 ///
 /// One instance per uid: it is created with the user in `UserScope`, so
 /// switching accounts drops this state and one user's catalog can never
@@ -37,6 +41,8 @@ class PlacesBloc extends Bloc<PlacesEvent, PlacesState> {
        _crashReporter = crashReporter,
        super(const PlacesState()) {
     on<PlacesLoadRequested>(_onLoad);
+    on<_PlacesArrived>(_onArrived);
+    on<_PlacesStreamFailed>(_onStreamFailed);
     on<PlaceCreated>(_onCreated);
     on<PlaceUpdated>(_onUpdated);
     on<PlaceDeleted>(_onDeleted);
@@ -46,40 +52,64 @@ class PlacesBloc extends Bloc<PlacesEvent, PlacesState> {
 
   final String uid;
   final PlacesRepository _repository;
-
-  /// Lets tests flip a fake repository between calls.
-  @visibleForTesting
-  PlacesRepository get repositoryForTest => _repository;
   final AnalyticsService _analytics;
   final CrashReporter _crashReporter;
 
+  StreamSubscription<List<Place>>? _subscription;
+
+  /// (Re)subscribes to the catalog. Sent at start and by "Retry".
   Future<void> _onLoad(
     PlacesLoadRequested event,
     Emitter<PlacesState> emit,
   ) async {
     emit(state.copyWith(status: PlacesStatus.loading, clearError: true));
-    try {
-      final List<Place> places = await _repository.loadPlaces(uid);
-      emit(state.copyWith(status: PlacesStatus.loaded, places: places));
-    } catch (error, stack) {
-      await _crashReporter.recordError(error, stack, reason: 'Load places');
-      emit(
-        state.copyWith(
-          status: PlacesStatus.failure,
-          errorMessage: AppStrings.placesLoadError,
-        ),
-      );
-    }
+    // Not awaited: the old stream is simply dropped (nothing depends on the
+    // moment its cancellation completes).
+    unawaited(_subscription?.cancel());
+    _subscription = _repository
+        .watchPlaces(uid)
+        .listen(
+          (List<Place> places) => add(_PlacesArrived(places)),
+          onError: (Object error, StackTrace stack) =>
+              add(_PlacesStreamFailed(error, stack)),
+        );
+  }
+
+  void _onArrived(_PlacesArrived event, Emitter<PlacesState> emit) {
+    emit(
+      state.copyWith(
+        status: PlacesStatus.loaded,
+        places: event.places,
+        // A fresh list also ends an earlier "could not save" notice.
+        clearError: true,
+      ),
+    );
+  }
+
+  Future<void> _onStreamFailed(
+    _PlacesStreamFailed event,
+    Emitter<PlacesState> emit,
+  ) async {
+    await _crashReporter.recordError(
+      event.error,
+      event.stack,
+      reason: 'Watch places',
+    );
+    emit(
+      state.copyWith(
+        status: PlacesStatus.failure,
+        errorMessage: event.error is PlacesFailure
+            ? (event.error as PlacesFailure).message
+            : AppStrings.placesLoadError,
+      ),
+    );
   }
 
   Future<void> _onCreated(PlaceCreated event, Emitter<PlacesState> emit) =>
-      _change(emit, event.place, [...state.places, event.place]);
+      _save(emit, event.place);
 
   Future<void> _onUpdated(PlaceUpdated event, Emitter<PlacesState> emit) =>
-      _change(emit, event.place, [
-        for (final Place p in state.places)
-          p.id == event.place.id ? event.place : p,
-      ]);
+      _save(emit, event.place);
 
   Future<void> _onFavoriteToggled(
     PlaceFavoriteToggled event,
@@ -88,27 +118,19 @@ class PlacesBloc extends Bloc<PlacesEvent, PlacesState> {
     final Place? place = state.byId(event.placeId);
     if (place == null) return;
     final Place toggled = place.copyWith(isFavorite: !place.isFavorite);
-    await _change(emit, toggled, [
-      for (final Place p in state.places) p.id == toggled.id ? toggled : p,
-    ]);
-    _analytics.logPlaceFavoriteToggled(
-      placeId: toggled.id,
-      isFavorite: toggled.isFavorite,
-    );
+    if (await _save(emit, toggled)) {
+      _analytics.logPlaceFavoriteToggled(
+        placeId: toggled.id,
+        isFavorite: toggled.isFavorite,
+      );
+    }
   }
 
   Future<void> _onDeleted(PlaceDeleted event, Emitter<PlacesState> emit) async {
     emit(state.copyWith(clearError: true));
     try {
       await _repository.deletePlace(uid, event.placeId);
-      emit(
-        state.copyWith(
-          places: [
-            for (final Place p in state.places)
-              if (p.id != event.placeId) p,
-          ],
-        ),
-      );
+      // No emit: the live stream delivers the shorter list.
     } catch (error, stack) {
       await _failSave(emit, error, stack);
     }
@@ -120,19 +142,16 @@ class PlacesBloc extends Bloc<PlacesEvent, PlacesState> {
     _analytics.logPlaceOpened(placeId: place.id, category: place.category.name);
   }
 
-  /// Saves [place] first and only then publishes [next]: the screen never
-  /// shows a change that is not on disk.
-  Future<void> _change(
-    Emitter<PlacesState> emit,
-    Place place,
-    List<Place> next,
-  ) async {
+  /// Writes [place]; the screen updates when the stream reports it.
+  /// Returns whether the write was accepted.
+  Future<bool> _save(Emitter<PlacesState> emit, Place place) async {
     emit(state.copyWith(clearError: true));
     try {
       await _repository.savePlace(uid, place);
-      emit(state.copyWith(places: next));
+      return true;
     } catch (error, stack) {
       await _failSave(emit, error, stack);
+      return false;
     }
   }
 
@@ -142,6 +161,18 @@ class PlacesBloc extends Bloc<PlacesEvent, PlacesState> {
     StackTrace stack,
   ) async {
     await _crashReporter.recordError(error, stack, reason: 'Save place');
-    emit(state.copyWith(errorMessage: AppStrings.placesSaveError));
+    emit(
+      state.copyWith(
+        errorMessage: error is PlacesFailure
+            ? error.message
+            : AppStrings.placesSaveError,
+      ),
+    );
+  }
+
+  @override
+  Future<void> close() async {
+    await _subscription?.cancel();
+    return super.close();
   }
 }

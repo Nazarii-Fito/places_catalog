@@ -2,12 +2,15 @@
 // formals.
 // ignore_for_file: prefer_initializing_formals
 
+import 'dart:async';
+
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/errors/auth_failure.dart';
 import '../../../data/models/app_user.dart';
 import '../../../data/repositories/auth_repository.dart';
+import '../../../data/repositories/user_profile_repository.dart';
 import '../../../data/services/analytics_service.dart';
 
 part 'profile_event.dart';
@@ -19,8 +22,10 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
   ProfileBloc({
     required AuthRepository auth,
     required AnalyticsService analytics,
+    required UserProfileRepository profiles,
   }) : _auth = auth,
        _analytics = analytics,
+       _profiles = profiles,
        // The current user is known synchronously, so the first frame is
        // already filled in; the stream then keeps it up to date.
        super(
@@ -41,6 +46,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
 
   final AuthRepository _auth;
   final AnalyticsService _analytics;
+  final UserProfileRepository _profiles;
 
   Future<void> _onStarted(ProfileStarted event, Emitter<ProfileState> emit) {
     return emit.forEach<AppUser?>(
@@ -66,6 +72,9 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
         photoUrl: event.photoUrl,
       );
       await _analytics.logProfileUpdated(photoSource: event.photoSource);
+      final AppUser? updated = _auth.currentUser;
+      // Mirror the new name/photo into `users/{uid}` (best-effort).
+      if (updated != null) unawaited(_profiles.syncProfile(updated));
       // saving → idle is the "saved" signal the Edit Profile screen waits for.
       emit(state.copyWith(status: ProfileStatus.idle));
     } on AuthFailure catch (failure) {

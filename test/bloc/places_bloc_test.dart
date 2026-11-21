@@ -58,11 +58,20 @@ void main() {
 
   setUp(() => analytics = _RecordingAnalytics());
 
+  /// Starts the bloc and waits until the catalog has arrived.
+  Future<void> loaded(PlacesBloc b) async {
+    b.add(const PlacesLoadRequested());
+    await b.stream.firstWhere(
+      (PlacesState s) => s.status == PlacesStatus.loaded,
+    );
+  }
+
   group('PlacesBloc', () {
     blocTest<PlacesBloc, PlacesState>(
       'load: loading → loaded with the catalog',
       build: () => make(InMemoryPlacesRepository()),
       act: (PlacesBloc b) => b.add(const PlacesLoadRequested()),
+      wait: const Duration(milliseconds: 30),
       expect: () => [
         const PlacesState(status: PlacesStatus.loading),
         isA<PlacesState>()
@@ -75,6 +84,7 @@ void main() {
       'load failure: loading → failure with a message',
       build: () => make(InMemoryPlacesRepository(failLoad: true)),
       act: (PlacesBloc b) => b.add(const PlacesLoadRequested()),
+      wait: const Duration(milliseconds: 30),
       expect: () => [
         const PlacesState(status: PlacesStatus.loading),
         isA<PlacesState>()
@@ -83,101 +93,109 @@ void main() {
       ],
     );
 
-    blocTest<PlacesBloc, PlacesState>(
-      'retry after a failure loads the catalog',
-      build: () {
-        final InMemoryPlacesRepository repo = InMemoryPlacesRepository(
-          failLoad: true,
-        );
-        return make(repo);
-      },
-      act: (PlacesBloc b) async {
-        b.add(const PlacesLoadRequested());
-        await b.stream.firstWhere(
-          (PlacesState s) => s.status == PlacesStatus.failure,
-        );
-        (b.repositoryForTest as InMemoryPlacesRepository).failLoad = false;
-        b.add(const PlacesLoadRequested());
-      },
-      skip: 2,
-      wait: const Duration(milliseconds: 50),
-      expect: () => [
-        const PlacesState(status: PlacesStatus.loading),
-        isA<PlacesState>().having((s) => s.status, 's', PlacesStatus.loaded),
-      ],
-    );
+    test('retry after a failure loads the catalog', () async {
+      final InMemoryPlacesRepository repo = InMemoryPlacesRepository(
+        failLoad: true,
+      );
+      final PlacesBloc bloc = make(repo)..add(const PlacesLoadRequested());
+      await bloc.stream.firstWhere(
+        (PlacesState s) => s.status == PlacesStatus.failure,
+      );
+      repo.failLoad = false;
+      bloc.add(const PlacesLoadRequested());
+      final PlacesState ok = await bloc.stream.firstWhere(
+        (PlacesState s) => s.status == PlacesStatus.loaded,
+      );
+      expect(ok.places.length, mockPlaces.length);
+      await bloc.close();
+    });
 
-    blocTest<PlacesBloc, PlacesState>(
-      'create appends the place and saves it',
-      build: () => make(InMemoryPlacesRepository()),
-      seed: () =>
-          PlacesState(status: PlacesStatus.loaded, places: List.of(mockPlaces)),
-      act: (PlacesBloc b) => b.add(PlaceCreated(fresh)),
-      verify: (PlacesBloc b) {
-        expect(b.state.places.last.id, 'fresh');
-        expect(b.state.places.length, mockPlaces.length + 1);
-      },
-    );
+    test('a change from elsewhere reaches the state (live stream)', () async {
+      final InMemoryPlacesRepository repo = InMemoryPlacesRepository();
+      final PlacesBloc bloc = make(repo);
+      await loaded(bloc);
+      // Another "device" writes straight to the repository.
+      await repo.savePlace('u1', fresh);
+      final PlacesState s = await bloc.stream.firstWhere(
+        (PlacesState s) => s.byId('fresh') != null,
+      );
+      expect(s.places.length, mockPlaces.length + 1);
+      await bloc.close();
+    });
 
-    blocTest<PlacesBloc, PlacesState>(
-      'update replaces the place with the same id',
-      build: () => make(InMemoryPlacesRepository()),
-      seed: () =>
-          PlacesState(status: PlacesStatus.loaded, places: List.of(mockPlaces)),
-      act: (PlacesBloc b) =>
-          b.add(PlaceUpdated(mockPlaces.first.copyWith(name: 'Renamed'))),
-      verify: (PlacesBloc b) {
-        expect(b.state.byId(mockPlaces.first.id)!.name, 'Renamed');
-        expect(b.state.places.length, mockPlaces.length);
-      },
-    );
+    test('create appends the place and saves it', () async {
+      final PlacesBloc bloc = make(InMemoryPlacesRepository());
+      await loaded(bloc);
+      bloc.add(PlaceCreated(fresh));
+      final PlacesState s = await bloc.stream.firstWhere(
+        (PlacesState s) => s.byId('fresh') != null,
+      );
+      expect(s.places.length, mockPlaces.length + 1);
+      await bloc.close();
+    });
 
-    blocTest<PlacesBloc, PlacesState>(
-      'delete removes the place',
-      build: () => make(InMemoryPlacesRepository()),
-      seed: () =>
-          PlacesState(status: PlacesStatus.loaded, places: List.of(mockPlaces)),
-      act: (PlacesBloc b) => b.add(PlaceDeleted(mockPlaces.first.id)),
-      verify: (PlacesBloc b) {
-        expect(b.state.byId(mockPlaces.first.id), isNull);
-        expect(b.state.places.length, mockPlaces.length - 1);
-      },
-    );
+    test('update replaces the place with the same id', () async {
+      final PlacesBloc bloc = make(InMemoryPlacesRepository());
+      await loaded(bloc);
+      bloc.add(PlaceUpdated(mockPlaces.first.copyWith(name: 'Renamed')));
+      final PlacesState s = await bloc.stream.firstWhere(
+        (PlacesState s) => s.byId(mockPlaces.first.id)?.name == 'Renamed',
+      );
+      expect(s.places.length, mockPlaces.length);
+      await bloc.close();
+    });
 
-    blocTest<PlacesBloc, PlacesState>(
-      'toggle favourite flips the flag and logs analytics',
-      build: () => make(InMemoryPlacesRepository()),
-      seed: () =>
-          PlacesState(status: PlacesStatus.loaded, places: List.of(mockPlaces)),
-      act: (PlacesBloc b) => b.add(PlaceFavoriteToggled(mockPlaces.first.id)),
-      verify: (PlacesBloc b) {
-        expect(b.state.byId(mockPlaces.first.id)!.isFavorite, isFalse);
-        expect(analytics.events, ['fav:${mockPlaces.first.id}:false']);
-      },
-    );
+    test('delete removes the place', () async {
+      final PlacesBloc bloc = make(InMemoryPlacesRepository());
+      await loaded(bloc);
+      bloc.add(PlaceDeleted(mockPlaces.first.id));
+      final PlacesState s = await bloc.stream.firstWhere(
+        (PlacesState s) => s.byId(mockPlaces.first.id) == null,
+      );
+      expect(s.places.length, mockPlaces.length - 1);
+      await bloc.close();
+    });
 
-    blocTest<PlacesBloc, PlacesState>(
-      'a failed save keeps the list and reports an error once',
-      build: () => make(_FailingSaves()),
-      seed: () =>
-          PlacesState(status: PlacesStatus.loaded, places: List.of(mockPlaces)),
-      act: (PlacesBloc b) => b.add(PlaceCreated(fresh)),
-      verify: (PlacesBloc b) {
-        expect(b.state.places.length, mockPlaces.length);
-        expect(b.state.status, PlacesStatus.loaded);
-        expect(b.state.errorMessage, isNotNull);
-      },
-    );
+    test('toggle favourite flips the flag and logs analytics', () async {
+      final PlacesBloc bloc = make(InMemoryPlacesRepository());
+      await loaded(bloc);
+      bloc.add(PlaceFavoriteToggled(mockPlaces.first.id));
+      final PlacesState s = await bloc.stream.firstWhere(
+        (PlacesState s) => s.byId(mockPlaces.first.id)?.isFavorite == false,
+      );
+      expect(s.byId(mockPlaces.first.id)!.isFavorite, isFalse);
+      expect(analytics.events, ['fav:${mockPlaces.first.id}:false']);
+      await bloc.close();
+    });
 
-    blocTest<PlacesBloc, PlacesState>(
-      'opening a place only logs analytics',
-      build: () => make(InMemoryPlacesRepository()),
-      seed: () =>
-          PlacesState(status: PlacesStatus.loaded, places: List.of(mockPlaces)),
-      act: (PlacesBloc b) => b.add(PlaceOpened(mockPlaces.first.id)),
-      expect: () => <PlacesState>[],
-      verify: (_) => expect(analytics.events, ['open:${mockPlaces.first.id}']),
-    );
+    test('a failed save keeps the list and reports an error', () async {
+      final PlacesBloc bloc = make(_FailingSaves());
+      await loaded(bloc);
+      bloc.add(PlaceCreated(fresh));
+      final PlacesState s = await bloc.stream.firstWhere(
+        (PlacesState s) => s.errorMessage != null,
+      );
+      expect(s.places.length, mockPlaces.length);
+      expect(s.status, PlacesStatus.loaded);
+      await bloc.close();
+    });
+
+    test('opening a place only logs analytics', () async {
+      final PlacesBloc bloc = make(InMemoryPlacesRepository());
+      await loaded(bloc);
+      final PlacesState before = bloc.state;
+      bloc.add(PlaceOpened(mockPlaces.first.id));
+      await Future<void>.delayed(Duration.zero);
+      expect(bloc.state, before);
+      expect(analytics.events, ['open:${mockPlaces.first.id}']);
+      await bloc.close();
+    });
+
+    test('closing the bloc cancels the subscription at once', () async {
+      final PlacesBloc bloc = make(InMemoryPlacesRepository());
+      await loaded(bloc);
+      await bloc.close().timeout(const Duration(seconds: 2));
+    });
   });
 
   group('CatalogViewCubit', () {

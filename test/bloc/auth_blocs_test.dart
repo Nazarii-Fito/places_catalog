@@ -4,6 +4,7 @@ import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:places_catalog/core/errors/auth_failure.dart';
 import 'package:places_catalog/data/repositories/fake_auth_repository.dart';
+import 'package:places_catalog/data/repositories/user_profile_repository.dart';
 import 'package:places_catalog/data/services/analytics_service.dart';
 import 'package:places_catalog/features/auth/bloc/forgot_password_cubit.dart';
 import 'package:places_catalog/features/auth/bloc/login_bloc.dart';
@@ -142,7 +143,11 @@ void main() {
   group('ProfileBloc', () {
     late FakeAuthRepository auth;
     setUp(() => auth = FakeAuthRepository.signedIn());
-    ProfileBloc make() => ProfileBloc(auth: auth, analytics: _analytics);
+    ProfileBloc make() => ProfileBloc(
+      auth: auth,
+      analytics: _analytics,
+      profiles: const NoopUserProfileRepository(),
+    );
 
     test('starts with the current user already available', () {
       final ProfileBloc bloc = make();

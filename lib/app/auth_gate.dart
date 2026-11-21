@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../core/theme/app_colors.dart';
 import '../core/widgets/app_logo.dart';
+import '../data/repositories/user_profile_repository.dart';
 import '../data/services/analytics_service.dart';
 import '../data/services/crash_reporter.dart';
 import '../features/auth/screens/login_screen.dart';
@@ -31,6 +32,10 @@ class AuthGate extends StatelessWidget {
             final String? uid = _uid(state);
             context.read<AnalyticsService>().setUserId(uid);
             context.read<CrashReporter>().setUserIdentifier(uid);
+            // First sign-in on this device creates/refreshes `users/{uid}`.
+            if (state is Authenticated) {
+              context.read<UserProfileRepository>().syncProfile(state.user);
+            }
           },
         ),
         // Signed in / out from a pushed screen (Register, Forgot, …): drop

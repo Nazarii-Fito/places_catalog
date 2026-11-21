@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../data/repositories/auth_repository.dart';
 import '../data/repositories/places_repository.dart';
 import '../data/repositories/settings_repository.dart';
+import '../data/repositories/user_profile_repository.dart';
 import '../data/services/analytics_service.dart';
 import '../data/services/crash_reporter.dart';
 import '../features/home/bloc/catalog_view_cubit.dart';
@@ -53,6 +54,7 @@ class UserScope extends StatelessWidget {
               create: (BuildContext context) => ProfileBloc(
                 auth: context.read<AuthRepository>(),
                 analytics: context.read<AnalyticsService>(),
+                profiles: context.read<UserProfileRepository>(),
               )..add(const ProfileStarted()),
             ),
           ],

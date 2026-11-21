@@ -27,6 +27,16 @@ abstract final class DevLaunchOptions {
   /// Index of the tab opened first in `MainShell` (0 — Home).
   static const int initialTab = int.fromEnvironment('INITIAL_TAB');
 
+  /// `--dart-define=PLACES_BACKEND=local` keeps the catalog in a JSON file
+  /// on the device (the Lab 5 behaviour); the default is Cloud Firestore.
+  /// Ignored in screenshot mode, which always uses memory.
+  static const String placesBackend = String.fromEnvironment(
+    'PLACES_BACKEND',
+    defaultValue: 'firestore',
+  );
+
+  static bool get useLocalPlaces => placesBackend == 'local';
+
   /// Screenshot mode only: how long the in-memory catalog "loads", so the
   /// loading state can be captured (`FAKE_LOAD_DELAY_MS=60000`).
   static const int fakeLoadDelayMs = int.fromEnvironment(

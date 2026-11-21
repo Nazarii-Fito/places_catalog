@@ -11,6 +11,7 @@ import 'package:places_catalog/data/repositories/in_memory_places_repository.dar
 import 'package:places_catalog/data/repositories/in_memory_settings_repository.dart';
 import 'package:places_catalog/data/repositories/places_repository.dart';
 import 'package:places_catalog/data/repositories/settings_repository.dart';
+import 'package:places_catalog/data/repositories/user_profile_repository.dart';
 import 'package:places_catalog/data/repositories/fake_auth_repository.dart';
 import 'package:places_catalog/data/services/analytics_service.dart';
 import 'package:places_catalog/data/services/crash_reporter.dart';
@@ -65,6 +66,9 @@ Widget withScope(
       ),
       RepositoryProvider<SettingsRepository>.value(
         value: settings ?? InMemorySettingsRepository(),
+      ),
+      RepositoryProvider<UserProfileRepository>.value(
+        value: const NoopUserProfileRepository(),
       ),
       RepositoryProvider<AnalyticsService>.value(
         value: const NoopAnalyticsService(),

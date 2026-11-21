@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
@@ -14,7 +15,11 @@ import 'data/repositories/auth_repository.dart';
 import 'features/session/bloc/auth_bloc.dart';
 import 'data/repositories/fake_auth_repository.dart';
 import 'data/repositories/firebase_auth_repository.dart';
+import 'data/firestore/firestore_places_document_store.dart';
+import 'data/repositories/firestore_places_repository.dart';
+import 'data/repositories/firestore_user_profile_repository.dart';
 import 'data/repositories/in_memory_places_repository.dart';
+import 'data/repositories/user_profile_repository.dart';
 import 'data/repositories/in_memory_settings_repository.dart';
 import 'data/repositories/local_places_repository.dart';
 import 'data/repositories/places_repository.dart';
@@ -54,13 +59,29 @@ Future<void> main() async {
   // Screenshot mode must not touch the disk: memory repositories, with a
   // short delay so the loading state is visible.
   final bool fake = DevLaunchOptions.useFakeAuth;
+  // Offline cache for Firestore (on by default on mobile; explicit here
+  // because the app's reliability requirement NFR5 depends on it).
+  FirebaseFirestore.instance.settings = const Settings(
+    persistenceEnabled: true,
+  );
   final PlacesRepository places = fake
       ? InMemoryPlacesRepository(
           delay: const Duration(milliseconds: DevLaunchOptions.fakeLoadDelayMs),
           failLoad: DevLaunchOptions.fakeLoadFail,
         )
-      : LocalPlacesRepository(
+      : DevLaunchOptions.useLocalPlaces
+      ? LocalPlacesRepository(
           directory: getApplicationDocumentsDirectory,
+          crashReporter: crashReporter,
+        )
+      : FirestorePlacesRepository(
+          store: FirestorePlacesDocumentStore(FirebaseFirestore.instance),
+          crashReporter: crashReporter,
+        );
+  final UserProfileRepository profiles = fake || DevLaunchOptions.useLocalPlaces
+      ? const NoopUserProfileRepository()
+      : FirestoreUserProfileRepository(
+          firestore: FirebaseFirestore.instance,
           crashReporter: crashReporter,
         );
   final SettingsRepository settings = fake
@@ -75,6 +96,7 @@ Future<void> main() async {
         RepositoryProvider<AuthRepository>.value(value: auth),
         RepositoryProvider<PlacesRepository>.value(value: places),
         RepositoryProvider<SettingsRepository>.value(value: settings),
+        RepositoryProvider<UserProfileRepository>.value(value: profiles),
         RepositoryProvider<AnalyticsService>.value(
           value: FirebaseAnalyticsService(FirebaseAnalytics.instance),
         ),

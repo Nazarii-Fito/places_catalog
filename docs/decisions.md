@@ -168,3 +168,9 @@
 - **Пагінація:** `loadPage(perPage, cursor)` на всіх бекендах; екран використовує `watchPlaces` (фільтр і пошук локальні, тому потрібен весь каталог).
 - **Rules** (`firestore.rules`): лише власник читає й пише `users/{uid}/**`; валідація місця (назва 2–50, категорія зі списку, `photos.size() <= 5`, типи координат). Каталог — **особистий щоденник**, тому на відміну від прикладу методички («публікації бачать усі») дані приватні. Файл компілюється (`firebase deploy --only firestore:rules --dry-run`); реальний деплой — після створення бази в консолі.
 - **`watchPlaces` без `async*`:** підписка скасовується миттєво (`reloadingStream` на `StreamController`); у генератора `cancel()` чекає наступної події й міг «зависати» разом із `Bloc.close()`.
+
+### Фаза B: `PlacesBloc` на живому потоці, профіль-дзеркало, вибір бекенда
+- **`PlacesBloc` підписується на `watchPlaces`** (`PlacesLoadRequested` підписує або перепідписує після Retry). Блок не «вважає» запис успішним: показує те, що репозиторій повідомив через потік, тому зміна з іншого пристрою з'являється так само, як власна. `PlaceDeleted` і обране лише пишуть у репозиторій; новий список приходить із потоку. `PlaceCreated`/`PlaceUpdated` лишено тимчасово тонкими обгортками (лише `savePlace`); у фазі D їх замінюють `CreatePlaceBloc` і `UpdatePlaceBloc`.
+- **`UserProfileRepository`** (`users/{uid}`): `displayName`, `email`, `photoUrl`, `lastLoginAt`; `createdAt` пишеться лише вперше. Викликається в `AuthGate` при вході й у `ProfileBloc` після збереження профілю; ніколи не кидає (best-effort, помилка йде в Crashlytics).
+- **Вибір бекенда:** за замовчуванням Firestore; `--dart-define=PLACES_BACKEND=local` — JSON-файл із ЛР №5 (тести й код збережено); у режимі `FAKE_AUTH` — пам'ять. Persistence Firestore вмикається явно в `main.dart`.
+- **iOS-збірка** з усіма новими пакетами (`cloud_firestore`, `supabase_flutter`, `image_picker`, `flutter_map`, …) проходить без конфліктів Swift Package Manager.
