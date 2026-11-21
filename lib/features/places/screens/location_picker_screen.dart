@@ -77,8 +77,12 @@ class _LocationPickerViewState extends State<_LocationPickerView> {
     super.initState();
     final LocationPickerArgs? start = widget.initial;
     // An old record has an address but no point: try to find it on the map.
+    final LocationPickerCubit cubit = context.read<LocationPickerCubit>();
     if (start != null && !start.hasPoint && start.address.isNotEmpty) {
-      context.read<LocationPickerCubit>().centerOnAddress(start.address);
+      cubit.centerOnAddress(start.address);
+    } else if (start == null || start.address.isEmpty) {
+      // A fresh picker: name the point it opens on, like a drag would.
+      cubit.mapMoved(cubit.state.center);
     }
   }
 

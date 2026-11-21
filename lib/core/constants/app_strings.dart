@@ -199,7 +199,7 @@ abstract final class AppStrings {
 
   // Location picker
   static const String defaultMapQuery = 'Manhattan, Bandery';
-  static const String pickedPlaceTitle = 'Manhattan, Ukraine';
+  static const String pickedPlaceTitle = 'Selected location';
   static const String pickedPlaceAddress = 'Bandery, 05, Manhattan, NY, 79090';
   static const String pickedCoordinates = '40.7587° N, 73.9787° W';
   static const String confirmLocation = 'Confirm Location';

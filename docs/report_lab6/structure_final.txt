@@ -1,0 +1,196 @@
+Структура проєкту наприкінці ЛР №6 (Firestore, Supabase Storage, мапа)
+
+Каталоги lib/
+  app/                      MaterialApp, маршрути, AuthGate, UserScope (блоки користувача над Navigator), параметри запуску
+  core/                     тема, UI-компоненти (PlaceImageView, OsmTileLayer, ErrorState…), валідатори, типізовані помилки
+                            (AuthFailure, PlacesFailure, GeocodingFailure), константи (MapDefaults)
+  data/models/              Place, Review, PlacePhoto (asset/local/remote), GeocodingResult, PickedLocation, AppUser
+  data/firestore/           PlaceMapper (модель ↔ документ), PlacesDocumentStore + реалізації Firestore / in-memory
+  data/repositories/        інтерфейси й реалізації: Places (Firestore / файл / пам'ять), Media (Supabase / Fake / NotConfigured),
+                            Geocoding (Nominatim через dio / Fake), UserProfile, Settings, Auth
+  data/services/            Analytics, CrashReporter, PhotoPickerService (image_picker), MapLauncher (url_launcher),
+                            PhotoUploadSession (завантаження з відкатом), SupabaseConfig
+  features/session/bloc/    AuthBloc
+  features/auth/            екрани входу; bloc/: LoginBloc, RegisterBloc, ForgotPasswordCubit
+  features/places/          екрани Details / PlaceForm / Location Picker; bloc/: PlacesBloc, CreatePlaceBloc, UpdatePlaceBloc,
+                            LocationPickerCubit
+  features/home/            Home; bloc/: CatalogViewCubit
+  features/favorites/       Favorites
+  features/profile/         Profile / Edit / Change Password / Export; bloc/: ProfileBloc, ChangePasswordCubit
+  features/shell/           MainShell
+
+Файли конфігурації: firestore.rules, firebase.json (розділ firestore), env/supabase.example.json,
+.vscode/launch.json, android/…/AndroidManifest.xml (INTERNET, queries), ios/Runner/Info.plist (камера, фото)
+
+Дерево файлів
+  lib/app/app.dart
+  lib/app/auth_gate.dart
+  lib/app/dev_launch_options.dart
+  lib/app/routes/app_routes.dart
+  lib/app/user_scope.dart
+  lib/core/constants/app_assets.dart
+  lib/core/constants/app_strings.dart
+  lib/core/constants/map_defaults.dart
+  lib/core/errors/auth_failure.dart
+  lib/core/errors/geocoding_failure.dart
+  lib/core/errors/places_failure.dart
+  lib/core/theme/app_colors.dart
+  lib/core/theme/app_radii.dart
+  lib/core/theme/app_shadows.dart
+  lib/core/theme/app_spacing.dart
+  lib/core/theme/app_text_styles.dart
+  lib/core/theme/app_theme.dart
+  lib/core/utils/coordinates_formatter.dart
+  lib/core/utils/date_formatter.dart
+  lib/core/validation/validators.dart
+  lib/core/widgets/add_tag_dialog.dart
+  lib/core/widgets/app_bottom_nav_bar.dart
+  lib/core/widgets/app_confirm_dialog.dart
+  lib/core/widgets/app_logo.dart
+  lib/core/widgets/app_nav_header.dart
+  lib/core/widgets/app_svg_icon.dart
+  lib/core/widgets/app_text_field.dart
+  lib/core/widgets/app_text_link.dart
+  lib/core/widgets/category_chip.dart
+  lib/core/widgets/divider_with_text.dart
+  lib/core/widgets/empty_state.dart
+  lib/core/widgets/error_banner.dart
+  lib/core/widgets/error_state.dart
+  lib/core/widgets/nav_back_button.dart
+  lib/core/widgets/osm_tile_layer.dart
+  lib/core/widgets/place_card.dart
+  lib/core/widgets/place_image_view.dart
+  lib/core/widgets/pressable_opacity.dart
+  lib/core/widgets/primary_button.dart
+  lib/core/widgets/rating_stars.dart
+  lib/core/widgets/search_field.dart
+  lib/core/widgets/secondary_button.dart
+  lib/core/widgets/section_label.dart
+  lib/core/widgets/settings_tile.dart
+  lib/core/widgets/social_auth_button.dart
+  lib/core/widgets/stat_tile.dart
+  lib/core/widgets/tag_list.dart
+  lib/core/widgets/user_avatar.dart
+  lib/data/firestore/firestore_places_document_store.dart
+  lib/data/firestore/in_memory_places_document_store.dart
+  lib/data/firestore/place_mapper.dart
+  lib/data/firestore/places_document_store.dart
+  lib/data/mock/mock_places.dart
+  lib/data/models/app_user.dart
+  lib/data/models/geocoding_result.dart
+  lib/data/models/place.dart
+  lib/data/models/place_category.dart
+  lib/data/models/place_photo.dart
+  lib/data/models/review.dart
+  lib/data/models/user_stats.dart
+  lib/data/repositories/auth_repository.dart
+  lib/data/repositories/fake_auth_repository.dart
+  lib/data/repositories/fake_media_repository.dart
+  lib/data/repositories/firebase_auth_repository.dart
+  lib/data/repositories/firestore_places_repository.dart
+  lib/data/repositories/firestore_user_profile_repository.dart
+  lib/data/repositories/geocoding_repository.dart
+  lib/data/repositories/in_memory_places_repository.dart
+  lib/data/repositories/in_memory_settings_repository.dart
+  lib/data/repositories/local_places_repository.dart
+  lib/data/repositories/media_repository.dart
+  lib/data/repositories/nominatim_geocoding_repository.dart
+  lib/data/repositories/places_ordering.dart
+  lib/data/repositories/places_repository.dart
+  lib/data/repositories/reloading_stream.dart
+  lib/data/repositories/settings_repository.dart
+  lib/data/repositories/shared_prefs_settings_repository.dart
+  lib/data/repositories/supabase_media_repository.dart
+  lib/data/repositories/user_profile_repository.dart
+  lib/data/services/analytics_service.dart
+  lib/data/services/crash_reporter.dart
+  lib/data/services/map_launcher.dart
+  lib/data/services/photo_picker_service.dart
+  lib/data/services/photo_upload_session.dart
+  lib/data/services/supabase_config.dart
+  lib/features/auth/bloc/forgot_password_cubit.dart
+  lib/features/auth/bloc/login_bloc.dart
+  lib/features/auth/bloc/login_event.dart
+  lib/features/auth/bloc/login_state.dart
+  lib/features/auth/bloc/register_bloc.dart
+  lib/features/auth/bloc/register_event.dart
+  lib/features/auth/bloc/register_state.dart
+  lib/features/auth/screens/forgot_password_screen.dart
+  lib/features/auth/screens/login_screen.dart
+  lib/features/auth/screens/register_screen.dart
+  lib/features/auth/widgets/auth_header.dart
+  lib/features/auth/widgets/auth_legal_text.dart
+  lib/features/auth/widgets/auth_page.dart
+  lib/features/auth/widgets/auth_switch_prompt.dart
+  lib/features/auth/widgets/social_auth_row.dart
+  lib/features/auth/widgets/social_sign_in.dart
+  lib/features/favorites/screens/favorites_screen.dart
+  lib/features/home/bloc/catalog_view_cubit.dart
+  lib/features/home/home_filter.dart
+  lib/features/home/home_sort.dart
+  lib/features/home/screens/home_screen.dart
+  lib/features/home/widgets/catalog_summary_strip.dart
+  lib/features/home/widgets/home_title_row.dart
+  lib/features/places/bloc/create_place_bloc.dart
+  lib/features/places/bloc/create_place_event.dart
+  lib/features/places/bloc/create_place_state.dart
+  lib/features/places/bloc/location_picker_cubit.dart
+  lib/features/places/bloc/places_bloc.dart
+  lib/features/places/bloc/places_event.dart
+  lib/features/places/bloc/places_state.dart
+  lib/features/places/bloc/update_place_bloc.dart
+  lib/features/places/bloc/update_place_event.dart
+  lib/features/places/bloc/update_place_state.dart
+  lib/features/places/place_details_args.dart
+  lib/features/places/screens/add_place_pickers.dart
+  lib/features/places/screens/location_picker_screen.dart
+  lib/features/places/screens/place_details_screen.dart
+  lib/features/places/screens/place_form_screen.dart
+  lib/features/places/widgets/details_hero.dart
+  lib/features/places/widgets/details_sections.dart
+  lib/features/places/widgets/form_group.dart
+  lib/features/places/widgets/photo_picker_panel.dart
+  lib/features/places/widgets/rating_summary_card.dart
+  lib/features/places/widgets/star_rating_input.dart
+  lib/features/profile/bloc/change_password_cubit.dart
+  lib/features/profile/bloc/profile_bloc.dart
+  lib/features/profile/bloc/profile_event.dart
+  lib/features/profile/bloc/profile_state.dart
+  lib/features/profile/screens/change_password_screen.dart
+  lib/features/profile/screens/edit_profile_screen.dart
+  lib/features/profile/screens/export_archive_screen.dart
+  lib/features/profile/screens/profile_screen.dart
+  lib/features/profile/widgets/activity_summary_card.dart
+  lib/features/profile/widgets/avatar_picker.dart
+  lib/features/profile/widgets/connected_accounts_group.dart
+  lib/features/profile/widgets/log_out_button.dart
+  lib/features/profile/widgets/profile_hero.dart
+  lib/features/profile/widgets/version_footer.dart
+  lib/features/session/bloc/auth_bloc.dart
+  lib/features/session/bloc/auth_event.dart
+  lib/features/session/bloc/auth_state.dart
+  lib/features/shell/main_shell.dart
+  lib/firebase_options.dart
+  lib/main.dart
+
+test/
+  test/auth_flow_test.dart
+  test/bloc/auth_blocs_test.dart
+  test/bloc/location_picker_cubit_test.dart
+  test/bloc/place_save_blocs_test.dart
+  test/bloc/places_bloc_test.dart
+  test/data/firestore_repository_test.dart
+  test/data/geocoding_test.dart
+  test/data/media_test.dart
+  test/data/storage_test.dart
+  test/helpers/recording_crash_reporter.dart
+  test/helpers/test_harness.dart
+  test/layout_test.dart
+  test/map_screens_test.dart
+  test/photo_picking_test.dart
+  test/place_save_flow_test.dart
+  test/places_flow_test.dart
+  test/validators_test.dart
+  test/widget_test.dart
+
+Кількість: lib 149 файлів, test 18 файлів
