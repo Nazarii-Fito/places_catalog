@@ -15,6 +15,7 @@ class Place {
     required this.address,
     required this.visitDate,
     required this.coverImage,
+    this.createdAt,
     this.review,
     this.isFavorite = false,
     this.latitude,
@@ -34,7 +35,10 @@ class Place {
       subtitle: json['subtitle'] as String,
       address: json['address'] as String,
       visitDate: DateTime.parse(json['visitDate'] as String),
-      coverImage: json['coverImage'] as String,
+      coverImage: _coverFromJson(json['coverImage']),
+      createdAt: json['createdAt'] == null
+          ? null
+          : DateTime.parse(json['createdAt'] as String),
       review: review == null
           ? null
           : Review.fromJson((review as Map<Object?, Object?>).cast()),
@@ -48,6 +52,11 @@ class Place {
     );
   }
 
+  /// Lab 5 files stored the cover as a bare asset path; newer ones as a map.
+  static PlacePhoto _coverFromJson(Object? raw) => raw is String
+      ? PlacePhoto.asset(raw)
+      : PlacePhoto.fromJson((raw! as Map<Object?, Object?>).cast());
+
   final String id;
   final String name;
   final PlaceCategory category;
@@ -56,7 +65,13 @@ class Place {
   final String subtitle;
   final String address;
   final DateTime visitDate;
-  final String coverImage;
+
+  /// Thumbnail shown on cards; the first photo for user-created places.
+  final PlacePhoto coverImage;
+
+  /// When the record was first saved; `null` for old local records. Used as
+  /// the tie-breaker when two places share a visit date.
+  final DateTime? createdAt;
   final Review? review;
   final bool isFavorite;
   final double? latitude;
@@ -71,7 +86,8 @@ class Place {
     'subtitle': subtitle,
     'address': address,
     'visitDate': visitDate.toIso8601String(),
-    'coverImage': coverImage,
+    'coverImage': coverImage.toJson(),
+    'createdAt': createdAt?.toIso8601String(),
     'review': review?.toJson(),
     'isFavorite': isFavorite,
     'latitude': latitude,
@@ -82,7 +98,7 @@ class Place {
   int get photosCount => photos.length;
 
   /// Large photo for Place Details: the first attached photo, or the cover.
-  String get heroImage => photos.isEmpty ? coverImage : photos.first.imageAsset;
+  PlacePhoto get heroImage => photos.isEmpty ? coverImage : photos.first;
 
   /// Overall rating, or 0 when the place has not been reviewed yet.
   double get rating => review?.overallRating ?? 0;
@@ -97,7 +113,8 @@ class Place {
     String? subtitle,
     String? address,
     DateTime? visitDate,
-    String? coverImage,
+    PlacePhoto? coverImage,
+    DateTime? createdAt,
     Review? review,
     bool? isFavorite,
     double? latitude,
@@ -112,6 +129,7 @@ class Place {
       address: address ?? this.address,
       visitDate: visitDate ?? this.visitDate,
       coverImage: coverImage ?? this.coverImage,
+      createdAt: createdAt ?? this.createdAt,
       review: review ?? this.review,
       isFavorite: isFavorite ?? this.isFavorite,
       latitude: latitude ?? this.latitude,

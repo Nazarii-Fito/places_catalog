@@ -9,7 +9,9 @@ import '../theme/app_shadows.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_text_styles.dart';
 import '../utils/date_formatter.dart';
+import '../../data/models/place_photo.dart';
 import 'app_svg_icon.dart';
+import 'place_image_view.dart';
 import 'pressable_opacity.dart';
 import 'rating_stars.dart';
 
@@ -65,7 +67,7 @@ class PlaceCard extends StatelessWidget {
                   : CrossAxisAlignment.start,
               children: [
                 _Thumbnail(
-                  asset: place.coverImage,
+                  photo: place.coverImage,
                   size: isHome ? AppSizes.placeThumbnail : 88,
                 ),
                 const SizedBox(width: AppSpacing.ml),
@@ -95,9 +97,9 @@ class PlaceCard extends StatelessWidget {
 }
 
 class _Thumbnail extends StatelessWidget {
-  const _Thumbnail({required this.asset, required this.size});
+  const _Thumbnail({required this.photo, required this.size});
 
-  final String asset;
+  final PlacePhoto photo;
   final double size;
 
   @override
@@ -106,7 +108,7 @@ class _Thumbnail extends StatelessWidget {
       borderRadius: AppRadii.mdAll,
       child: ColoredBox(
         color: AppColors.surfaceContainer,
-        child: Image.asset(asset, width: size, height: size, fit: BoxFit.cover),
+        child: PlaceImageView(photo: photo, width: size, height: size),
       ),
     );
   }

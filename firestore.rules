@@ -1,0 +1,59 @@
+rules_version = '2';
+
+// PlacesCatalog is a PERSONAL diary: every user reads and writes only their
+// own data. (The course example lets everybody read what an author
+// publishes; that does not fit private visit notes. See docs/decisions.md.)
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedInAs(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    function validPhoto(photo) {
+      return photo is map
+          && photo.kind in ['asset', 'remote']
+          && photo.url is string;
+    }
+
+    // A place document written by the app. `latitude` / `longitude` are
+    // numbers, or null for a place without a picked location.
+    function validPlace(place) {
+      return place.keys().hasAll(
+               ['name', 'category', 'address', 'visitDate', 'isFavorite',
+                'cover', 'photos'])
+          && place.name is string
+          && place.name.size() >= 2 && place.name.size() <= 50
+          && place.category in ['cafe', 'restaurant', 'bar', 'museum',
+                                'fastFood', 'hotel', 'bakery', 'pub']
+          && place.address is string
+          && place.visitDate is timestamp
+          && place.isFavorite is bool
+          && (place.get('latitude', null) == null
+              || place.latitude is number)
+          && (place.get('longitude', null) == null
+              || place.longitude is number)
+          && validPhoto(place.cover)
+          && place.photos is list
+          && place.photos.size() <= 5
+          && (place.get('review', null) == null || place.review is map);
+    }
+
+    match /users/{uid} {
+      allow read: if signedInAs(uid);
+      // The profile mirror and the `seededAt` flag. Never deleted by the app.
+      allow create, update: if signedInAs(uid);
+      allow delete: if false;
+
+      match /places/{placeId} {
+        allow read, delete: if signedInAs(uid);
+        allow create, update: if signedInAs(uid) && validPlace(request.resource.data);
+      }
+    }
+
+    // Everything else is closed.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

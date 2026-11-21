@@ -9,6 +9,8 @@ import '../../../core/theme/app_radii.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/app_svg_icon.dart';
+import '../../../core/widgets/place_image_view.dart';
+import '../../../data/models/place_photo.dart';
 import '../../../core/widgets/pressable_opacity.dart';
 
 /// 260 pt cover photo with a dark gradient, a round favourite button and
@@ -23,7 +25,7 @@ class DetailsHero extends StatelessWidget {
     required this.onToggleFavorite,
   });
 
-  final String image;
+  final PlacePhoto image;
   final int photosCount;
   final bool isFavorite;
   final VoidCallback onToggleFavorite;
@@ -35,7 +37,7 @@ class DetailsHero extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          Image.asset(image, fit: BoxFit.cover),
+          PlaceImageView(photo: image),
           const DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(

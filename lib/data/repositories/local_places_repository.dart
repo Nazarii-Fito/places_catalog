@@ -9,6 +9,8 @@ import 'dart:io';
 import '../mock/mock_places.dart';
 import '../models/place.dart';
 import '../services/crash_reporter.dart';
+import 'places_ordering.dart';
+import 'reloading_stream.dart';
 import 'places_repository.dart';
 
 /// Stores each user's catalog as a JSON file (`places_<uid>.json`).
@@ -51,8 +53,32 @@ class LocalPlacesRepository implements PlacesRepository {
     return File('${dir.path}/places_$safe.json');
   }
 
+  final StreamController<String> _changes =
+      StreamController<String>.broadcast();
+  int _nextId = 0;
+
   @override
-  Future<List<Place>> loadPlaces(String uid) async {
+  Stream<List<Place>> watchPlaces(String uid) => reloadingStream(
+    load: () => loadPlaces(uid),
+    changes: _changes.stream.where((String changed) => changed == uid),
+  );
+
+  @override
+  Future<PlacesPage> loadPage(
+    String uid, {
+    int perPage = 20,
+    Object? cursor,
+  }) async => pageOf(await loadPlaces(uid), perPage: perPage, cursor: cursor);
+
+  @override
+  String newPlaceId(String uid) =>
+      'local-${DateTime.now().microsecondsSinceEpoch}-${_nextId++}';
+
+  @override
+  Future<List<Place>> loadPlaces(String uid) async =>
+      sortPlaces(await _read(uid));
+
+  Future<List<Place>> _read(String uid) async {
     final List<Place>? cached = _cache[uid];
     if (cached != null) return List.of(cached);
 
@@ -88,6 +114,7 @@ class LocalPlacesRepository implements PlacesRepository {
       list[index] = place;
     }
     await _write(uid, list);
+    _changes.add(uid);
   }
 
   @override
@@ -95,10 +122,11 @@ class LocalPlacesRepository implements PlacesRepository {
     final List<Place> list = await _mutable(uid);
     list.removeWhere((Place p) => p.id == placeId);
     await _write(uid, list);
+    _changes.add(uid);
   }
 
   Future<List<Place>> _mutable(String uid) async {
-    await loadPlaces(uid);
+    await _read(uid);
     return _cache[uid]!;
   }
 

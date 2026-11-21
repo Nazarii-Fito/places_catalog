@@ -323,6 +323,12 @@ abstract final class AppStrings {
       'Your change could not be saved. Please try again.';
   static const String placesSaveErrorTitle = 'Not Saved';
   static const String retry = 'Retry';
+  static const String errorPermissionDenied =
+      'You do not have access to this data. Please sign in again.';
+  static const String errorOffline =
+      'No connection. Check your internet and try again.';
+  static const String errorStorageNotSetUp = 'Cloud storage is not configured.';
+  static const String errorInvalidInput = 'This data is not valid.';
   static const String errorUnknown = 'Something went wrong. Please try again.';
 
   // Validation (Form validators)

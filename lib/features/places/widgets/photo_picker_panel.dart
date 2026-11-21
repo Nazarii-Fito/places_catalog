@@ -8,6 +8,8 @@ import '../../../core/theme/app_shadows.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/app_svg_icon.dart';
+import '../../../core/widgets/place_image_view.dart';
+import '../../../data/models/place_photo.dart';
 import '../../../core/widgets/pressable_opacity.dart';
 
 /// "Add Photos" panel with removable thumbnails and an "N left" tile.
@@ -20,7 +22,7 @@ class PhotoPickerPanel extends StatelessWidget {
     required this.onRemove,
   });
 
-  final List<String> photos;
+  final List<PlacePhoto> photos;
   final int maxPhotos;
   final VoidCallback onAdd;
   final ValueChanged<int> onRemove;
@@ -75,8 +77,8 @@ class PhotoPickerPanel extends StatelessWidget {
             child: Row(
               spacing: AppSpacing.sm,
               children: [
-                for (final (int i, String photo) in photos.indexed)
-                  _Thumb(asset: photo, onRemove: () => onRemove(i)),
+                for (final (int i, PlacePhoto photo) in photos.indexed)
+                  _Thumb(photo: photo, onRemove: () => onRemove(i)),
                 if (left > 0) _AddMoreTile(left: left, onTap: onAdd),
               ],
             ),
@@ -88,9 +90,9 @@ class PhotoPickerPanel extends StatelessWidget {
 }
 
 class _Thumb extends StatelessWidget {
-  const _Thumb({required this.asset, required this.onRemove});
+  const _Thumb({required this.photo, required this.onRemove});
 
-  final String asset;
+  final PlacePhoto photo;
   final VoidCallback onRemove;
 
   @override
@@ -107,7 +109,7 @@ class _Thumb extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          Image.asset(asset, fit: BoxFit.cover),
+          PlaceImageView(photo: photo),
           Positioned(
             top: AppSpacing.xs,
             right: AppSpacing.xs,

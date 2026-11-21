@@ -64,7 +64,7 @@ class _PlaceFormScreenState extends State<PlaceFormScreen> {
 
   late final TextEditingController _nameController;
   late final TextEditingController _notesController;
-  late List<String> _photos;
+  late List<PlacePhoto> _photos;
   late PlaceCategory _category;
   late String _location;
   late DateTime _visitDate;
@@ -85,8 +85,10 @@ class _PlaceFormScreenState extends State<PlaceFormScreen> {
       text: review?.textNote ?? (_demo ? AppStrings.defaultNote : ''),
     );
     _photos = place != null
-        ? [for (final PlacePhoto p in place.photos) p.imageAsset]
-        : (_demo ? List.of(_demoPhotos) : <String>[]);
+        ? List.of(place.photos)
+        : (_demo
+              ? [for (final String a in _demoPhotos) PlacePhoto.asset(a)]
+              : <PlacePhoto>[]);
     _category = place?.category ?? PlaceCategory.cafe;
     _location = place?.address ?? (_demo ? AppStrings.defaultLocation : '');
     _visitDate =
@@ -122,7 +124,10 @@ class _PlaceFormScreenState extends State<PlaceFormScreen> {
       _ratings.values.reduce((int a, int b) => a + b) / _ratings.length;
 
   void _addPhoto() => setState(() {
-    _photos = [..._photos, _demoPhotos[_photos.length % _demoPhotos.length]];
+    _photos = [
+      ..._photos,
+      PlacePhoto.asset(_demoPhotos[_photos.length % _demoPhotos.length]),
+    ];
   });
 
   void _removePhoto(int index) => setState(() {
@@ -133,14 +138,7 @@ class _PlaceFormScreenState extends State<PlaceFormScreen> {
   /// favourite flag, coordinates) is kept; for a new place they are created.
   Place _buildPlace() {
     final Place? old = widget.initial;
-    final Map<String, PlacePhoto> oldPhotos = {
-      for (final PlacePhoto p in old?.photos ?? const <PlacePhoto>[])
-        p.imageAsset: p,
-    };
-    final List<PlacePhoto> photos = [
-      for (final String asset in _photos)
-        oldPhotos[asset] ?? PlacePhoto(imageAsset: asset, fileSizeBytes: 0),
-    ];
+    final List<PlacePhoto> photos = _photos;
     final double food = _ratings[AppStrings.ratingFood]!.toDouble();
     final double service = _ratings[AppStrings.ratingService]!.toDouble();
     final double atmosphere = _ratings[AppStrings.ratingAtmosphere]!.toDouble();
@@ -165,8 +163,9 @@ class _PlaceFormScreenState extends State<PlaceFormScreen> {
       address: _location,
       visitDate: _visitDate,
       coverImage: photos.isNotEmpty
-          ? photos.first.imageAsset
-          : (old?.coverImage ?? AppAssets.photoStorefront),
+          ? photos.first
+          : (old?.coverImage ??
+                const PlacePhoto.asset(AppAssets.photoStorefront)),
       review: review,
       isFavorite: old?.isFavorite ?? false,
       latitude: old?.latitude,
