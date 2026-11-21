@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
@@ -20,12 +21,28 @@ class OverpassVenuesRepository implements VenuesRepository {
   OverpassVenuesRepository({
     Dio? dio,
     this.minInterval = const Duration(seconds: 1),
+    this.endpoints = defaultEndpoints,
+    this.hedgeDelay = const Duration(seconds: 3),
   }) : _dio = dio ?? _defaultDio();
 
   final Dio _dio;
   final Duration minInterval;
 
+  /// Public Overpass servers, tried in order. They are shared and
+  /// frequently "at capacity" (HTTP 502/504/429), so one failure must not
+  /// leave the map empty: the next server is asked.
+  final List<String> endpoints;
+
+  /// How long to wait for a server before also asking the next one.
+  final Duration hedgeDelay;
+
   static const String baseUrl = 'https://overpass-api.de';
+  static const List<String> defaultEndpoints = [
+    'https://overpass.private.coffee/api/interpreter',
+    'https://overpass-api.de/api/interpreter',
+    'https://overpass.kumi.systems/api/interpreter',
+    'https://overpass.openstreetmap.fr/api/interpreter',
+  ];
 
   static const int _cacheLimit = 20;
   final Map<String, List<GeocodingResult>> _cache = {};
@@ -35,8 +52,8 @@ class OverpassVenuesRepository implements VenuesRepository {
     final Dio dio = Dio(
       BaseOptions(
         baseUrl: baseUrl,
-        connectTimeout: const Duration(seconds: 10),
-        receiveTimeout: const Duration(seconds: 20),
+        connectTimeout: const Duration(seconds: 6),
+        receiveTimeout: const Duration(seconds: 15),
         headers: {'User-Agent': NominatimGeocodingRepository.userAgent},
       ),
     );
@@ -112,23 +129,82 @@ class OverpassVenuesRepository implements VenuesRepository {
     final List<GeocodingResult>? cached = _cache[cacheKey];
     if (cached != null) return cached;
     await _respectRateLimit();
-    try {
-      final Response<Object?> response = await _dio.get<Object?>(
-        '/api/interpreter',
-        queryParameters: {'data': query},
-        // Sent with every request (not only via the default client), so the
-        // operators can always tell who is calling.
-        options: Options(
-          headers: {'User-Agent': NominatimGeocodingRepository.userAgent},
-        ),
-      );
-      final List<GeocodingResult> venues = parse(response.data);
-      if (_cache.length >= _cacheLimit) _cache.remove(_cache.keys.first);
-      return _cache[cacheKey] = venues;
-    } on DioException catch (error) {
-      throw _toFailure(error);
-    }
+    final List<GeocodingResult> venues = await _fetchHedged(query);
+    if (_cache.length >= _cacheLimit) _cache.remove(_cache.keys.first);
+    return _cache[cacheKey] = venues;
   }
+
+  /// Asks the servers *staggered*: the first at once, the next after
+  /// [hedgeDelay] (or immediately if the one before failed), and so on. The
+  /// first good answer wins and the others are cancelled. Shared Overpass
+  /// servers are often slow or busy; waiting for each to time out in turn
+  /// took tens of seconds, this takes about as long as the fastest server.
+  Future<List<GeocodingResult>> _fetchHedged(String query) {
+    final Completer<List<GeocodingResult>> done = Completer();
+    final CancelToken cancel = CancelToken();
+    final List<Timer> timers = [];
+    int started = 0;
+    int failed = 0;
+
+    void finish() {
+      for (final Timer t in timers) {
+        t.cancel();
+      }
+      cancel.cancel();
+    }
+
+    late void Function(GeocodingFailure) onFailure;
+    late void Function() startNext;
+
+    Future<void> attempt(String endpoint) async {
+      try {
+        final Response<Object?> response = await _dio.get<Object?>(
+          endpoint,
+          queryParameters: {'data': query},
+          cancelToken: cancel,
+          // Sent with every request (not only via the default client), so
+          // the operators can always tell who is calling.
+          options: Options(
+            headers: {'User-Agent': NominatimGeocodingRepository.userAgent},
+          ),
+        );
+        if (done.isCompleted) return;
+        done.complete(parse(_asJson(response.data)));
+        finish();
+      } on DioException catch (error) {
+        if (CancelToken.isCancel(error) || done.isCompleted) return;
+        onFailure(_toFailure(error));
+      } on FormatException {
+        if (done.isCompleted) return;
+        onFailure(const GeocodingFailure(GeocodingFailureType.server));
+      }
+    }
+
+    startNext = () {
+      if (done.isCompleted || started >= endpoints.length) return;
+      attempt(endpoints[started++]);
+    };
+
+    // A failure starts the next server at once; when all failed, give up.
+    onFailure = (GeocodingFailure failure) {
+      failed++;
+      if (failed >= endpoints.length) {
+        if (!done.isCompleted) done.completeError(failure);
+      } else if (failed >= started) {
+        startNext();
+      }
+    };
+
+    startNext();
+    for (int i = 1; i < endpoints.length; i++) {
+      timers.add(Timer(hedgeDelay * i, startNext));
+    }
+    return done.future;
+  }
+
+  /// A busy server may answer `text/plain`, which Dio leaves as a string.
+  static Object? _asJson(Object? data) =>
+      data is String ? jsonDecode(data) : data;
 
   /// Turns an Overpass JSON answer into venues (named ones only). Public for
   /// tests.

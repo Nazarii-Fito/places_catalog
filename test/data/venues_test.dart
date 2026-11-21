@@ -152,7 +152,7 @@ void main() {
       await repo.nearby(area);
       expect(first, hasLength(3));
       expect(adapter.requests, hasLength(1));
-      expect(adapter.requests.single.path, '/api/interpreter');
+      expect(adapter.requests.single.uri.path, '/api/interpreter');
       expect(
         adapter.requests.single.headers['User-Agent'],
         'PlacesCatalog/1.0 (student lab project)',
@@ -166,6 +166,83 @@ void main() {
         isEmpty,
       );
       expect(adapter.requests, isEmpty);
+    });
+
+    test('a busy server falls back to the next one', () async {
+      final _FakeAdapter adapter = _FakeAdapter(
+        (RequestOptions o) => o.uri.host == 'busy.example'
+            ? _json('{}', 502)
+            : _json(_overpassBody),
+      );
+      final OverpassVenuesRepository repo = OverpassVenuesRepository(
+        dio: Dio()..httpClientAdapter = adapter,
+        minInterval: Duration.zero,
+        endpoints: const [
+          'https://busy.example/api/interpreter',
+          'https://ok.example/api/interpreter',
+        ],
+        hedgeDelay: const Duration(seconds: 30),
+      );
+      final List<GeocodingResult> found = await repo.nearby(
+        const GeoBounds(south: 1, west: 1, north: 2, east: 2),
+      );
+      expect(found, hasLength(3));
+      expect(adapter.requests.map((RequestOptions r) => r.uri.host), [
+        'busy.example',
+        'ok.example',
+      ]);
+    });
+
+    test('a slow server does not block a fast one (hedged requests)', () async {
+      final Completer<void> never = Completer<void>();
+      final _FakeAdapter adapter = _FakeAdapter((RequestOptions o) async {
+        if (o.uri.host == 'slow.example') await never.future; // hangs
+        return _json(_overpassBody);
+      });
+      final OverpassVenuesRepository repo = OverpassVenuesRepository(
+        dio: Dio()..httpClientAdapter = adapter,
+        minInterval: Duration.zero,
+        endpoints: const [
+          'https://slow.example/api/interpreter',
+          'https://fast.example/api/interpreter',
+        ],
+        hedgeDelay: const Duration(milliseconds: 30),
+      );
+      final List<GeocodingResult> found = await repo
+          .nearby(const GeoBounds(south: 3, west: 3, north: 4, east: 4))
+          .timeout(const Duration(seconds: 2));
+      expect(found, hasLength(3));
+      expect(adapter.requests, hasLength(2)); // both were asked
+    });
+
+    test('when every server fails, the last failure is reported', () async {
+      final _FakeAdapter adapter = _FakeAdapter((_) => _json('{}', 504));
+      final OverpassVenuesRepository repo = OverpassVenuesRepository(
+        dio: Dio()..httpClientAdapter = adapter,
+        minInterval: Duration.zero,
+        endpoints: const ['https://a.example/x', 'https://b.example/x'],
+        hedgeDelay: const Duration(seconds: 30),
+      );
+      await expectLater(
+        repo.nearby(const GeoBounds(south: 9, west: 9, north: 10, east: 10)),
+        throwsA(isA<GeocodingFailure>()),
+      );
+      expect(adapter.requests, hasLength(2));
+    });
+
+    test('a JSON answer sent as plain text is still read', () async {
+      final _FakeAdapter adapter = _FakeAdapter(
+        (_) => ResponseBody.fromString(
+          _overpassBody,
+          200,
+          headers: {
+            Headers.contentTypeHeader: ['text/plain'],
+          },
+        ),
+      );
+      final List<GeocodingResult> found = await _repo(adapter)
+          .nearby(const GeoBounds(south: 7, west: 7, north: 8, east: 8));
+      expect(found, hasLength(3));
     });
 
     test('errors become typed failures', () async {

@@ -1690,6 +1690,18 @@ abstract interface class MediaRepository {
     required PlacePhoto local,
   });
 
+  /// Uploads the user's profile picture to `users/<uid>/avatar/<uuid>.<ext>`
+  /// and returns it as a [PhotoKind.remote] photo. Throws [PlacesFailure].
+  Future<PlacePhoto> uploadAvatar({
+    required String uid,
+    required PlacePhoto local,
+  });
+
+  /// The object path of [url] if it points into *our* bucket, otherwise
+  /// `null` (a preset avatar or a link typed by the user is not ours to
+  /// delete).
+  String? storagePathOf(String url);
+
   /// Deletes one object. Best-effort callers may ignore the failure.
   Future<void> deletePhoto(String storagePath);
 
@@ -1711,6 +1723,15 @@ class NotConfiguredMediaRepository implements MediaRepository {
     required String placeId,
     required PlacePhoto local,
   }) async => throw const PlacesFailure(PlacesFailureType.storageNotConfigured);
+
+  @override
+  Future<PlacePhoto> uploadAvatar({
+    required String uid,
+    required PlacePhoto local,
+  }) async => throw const PlacesFailure(PlacesFailureType.storageNotConfigured);
+
+  @override
+  String? storagePathOf(String url) => null;
 
   @override
   Future<void> deletePhoto(String storagePath) async {}
@@ -1754,10 +1775,12 @@ class SupabaseMediaRepository implements MediaRepository {
     required CrashReporter crashReporter,
     required String bucket,
     Uuid uuid = const Uuid(),
-  }) : _storage = client.storage.from(bucket),
+  }) : _bucket = bucket,
+       _storage = client.storage.from(bucket),
        _crashReporter = crashReporter,
        _uuid = uuid;
 
+  final String _bucket;
   final StorageFileApi _storage;
   final CrashReporter _crashReporter;
   final Uuid _uuid;
@@ -1786,11 +1809,25 @@ class SupabaseMediaRepository implements MediaRepository {
     required String uid,
     required String placeId,
     required PlacePhoto local,
+  }) => _upload(uid: uid, folder: placeId, local: local);
+
+  /// `users/<uid>/avatar/<uuid>.<ext>`: the profile picture lives next to
+  /// the user's places, under its own folder.
+  @override
+  Future<PlacePhoto> uploadAvatar({
+    required String uid,
+    required PlacePhoto local,
+  }) => _upload(uid: uid, folder: 'avatar', local: local);
+
+  Future<PlacePhoto> _upload({
+    required String uid,
+    required String folder,
+    required PlacePhoto local,
   }) async {
     final String contentType = local.contentType ?? 'image/jpeg';
     final String path = buildPath(
       uid: uid,
-      placeId: placeId,
+      placeId: folder,
       fileId: _uuid.v4(),
       contentType: contentType,
     );
@@ -1812,6 +1849,13 @@ class SupabaseMediaRepository implements MediaRepository {
     } catch (error, stack) {
       throw _toFailure(error, stack);
     }
+  }
+
+  @override
+  String? storagePathOf(String url) {
+    final String marker = '/object/public/$_bucket/';
+    final int at = url.indexOf(marker);
+    return at == -1 ? null : url.substring(at + marker.length);
   }
 
   @override
@@ -1882,13 +1926,17 @@ abstract final class SupabaseConfig {
 Файл: `lib/data/models/geocoding_result.dart`
 
 ```dart
-/// A place found by address search or by looking up a point on the map.
+import 'place_category.dart';
+
+/// A place found by address search, by looking up a point on the map, or as
+/// a venue (cafe, restaurant…) near it.
 class GeocodingResult {
   const GeocodingResult({
     required this.displayName,
     required this.title,
     required this.latitude,
     required this.longitude,
+    this.category,
   });
 
   /// Reads one object of Nominatim's `jsonv2` format (`/search` returns a
@@ -1917,6 +1965,12 @@ class GeocodingResult {
   final String title;
   final double latitude;
   final double longitude;
+
+  /// Set for venues (a cafe, a museum…): what kind of place it is, so the form
+  /// can fill in the category. `null` for plain addresses.
+  final PlaceCategory? category;
+
+  bool get isVenue => category != null;
 }
 
 /// What the location picker hands back to the place form: a text address
@@ -1926,11 +1980,18 @@ class PickedLocation {
     required this.address,
     required this.latitude,
     required this.longitude,
+    this.name,
+    this.category,
   });
 
   final String address;
   final double latitude;
   final double longitude;
+
+  /// Only when the user chose a venue on the map: its name and kind. The form
+  /// uses them to pre-fill the place name and category.
+  final String? name;
+  final PlaceCategory? category;
 }
 
 /// What the form tells the location picker when it opens: the place's current
@@ -2227,22 +2288,35 @@ import '../../../core/constants/app_strings.dart';
 import '../../../core/errors/geocoding_failure.dart';
 import '../../../data/models/geocoding_result.dart';
 import '../../../data/repositories/geocoding_repository.dart';
+import '../../../data/repositories/venues_repository.dart';
+import '../../../data/services/location_service.dart';
 
 enum LocationPickerStatus {
   /// Nothing is running; the card shows the current point.
   idle,
 
-  /// An address search (submitted text) is running.
+  /// An address / venue search (submitted text) is running.
   searching,
 
   /// The address of the map centre is being looked up.
   resolving,
+
+  /// The phone's position is being read.
+  locating,
 
   /// The card shows a resolved address for the current point.
   ready,
 
   /// A search or lookup failed; [LocationPickerState.message] says why.
   error,
+}
+
+/// What part of the map the user sees; used to ask for venues in view.
+class MapViewport {
+  const MapViewport({required this.bounds, required this.zoom});
+
+  final GeoBounds bounds;
+  final double zoom;
 }
 
 class LocationPickerState extends Equatable {
@@ -2252,6 +2326,8 @@ class LocationPickerState extends Equatable {
     this.title = '',
     this.address = '',
     this.results = const [],
+    this.venues = const [],
+    this.selected,
     this.message,
     this.recenterTick = 0,
   });
@@ -2266,11 +2342,20 @@ class LocationPickerState extends Equatable {
 
   /// Several matches of the last search, shown under the search panel.
   final List<GeocodingResult> results;
+
+  /// Venues around the visible part of the map, drawn as markers.
+  final List<GeocodingResult> venues;
+
+  /// The venue the user tapped or picked from the results (its name and
+  /// kind go back to the form); `null` once the map is moved away.
+  final GeocodingResult? selected;
+
   final String? message;
 
   /// Increments when the *cubit* wants the map to jump to [center] (after a
-  /// search); a drag by the user does not change it. The screen moves the
-  /// map controller when it changes, which avoids a feedback loop.
+  /// search or "my location"); a drag by the user does not change it. The
+  /// screen moves the map controller when it changes, which avoids a
+  /// feedback loop.
   final int recenterTick;
 
   bool get hasAddress => address.isNotEmpty;
@@ -2281,6 +2366,9 @@ class LocationPickerState extends Equatable {
     String? title,
     String? address,
     List<GeocodingResult>? results,
+    List<GeocodingResult>? venues,
+    GeocodingResult? selected,
+    bool clearSelected = false,
     String? message,
     bool clearMessage = false,
     bool recenter = false,
@@ -2291,6 +2379,8 @@ class LocationPickerState extends Equatable {
       title: title ?? this.title,
       address: address ?? this.address,
       results: results ?? this.results,
+      venues: venues ?? this.venues,
+      selected: clearSelected ? null : selected ?? this.selected,
       message: clearMessage ? null : message ?? this.message,
       recenterTick: recenter ? recenterTick + 1 : recenterTick,
     );
@@ -2303,27 +2393,36 @@ class LocationPickerState extends Equatable {
     title,
     address,
     results,
+    venues,
+    selected,
     message,
     recenterTick,
   ];
 }
 
-/// State of the location picker: search, the point under the pin and its
-/// address.
+/// State of the location picker: search, "my location", the point under the
+/// pin, its address and the venues around it.
 ///
-/// * Search happens **on submit** only (Nominatim forbids autocomplete).
-/// * When the map stops moving, the address is looked up after a short
-///   [debounce], so a drag produces one request, not hundreds. A lookup that
-///   finishes after the map moved on again is discarded.
+/// * Search happens **on submit** only (the public Nominatim service forbids
+///   autocomplete). It looks for venues by name near the map centre *and*
+///   for addresses, and lists both.
+/// * When the map stops moving, the address and the venues in view are looked
+///   up after a short [debounce], so a drag produces one request, not
+///   hundreds. A lookup that finishes after the map moved on is discarded.
 /// * A failed lookup keeps the previous address, but the coordinates still
-///   follow the map, so the user can always confirm.
+///   follow the map, so the user can always confirm. Venues are a bonus:
+///   if they cannot be loaded nothing is shown and nothing breaks.
 class LocationPickerCubit extends Cubit<LocationPickerState> {
   LocationPickerCubit({
     required GeocodingRepository geocoding,
+    required VenuesRepository venues,
+    required LocationService location,
     required LatLng initialCenter,
     String initialAddress = '',
     this.debounce = const Duration(milliseconds: 700),
   }) : _geocoding = geocoding,
+       _venues = venues,
+       _location = location,
        super(
          LocationPickerState(
            center: initialCenter,
@@ -2336,7 +2435,12 @@ class LocationPickerCubit extends Cubit<LocationPickerState> {
        );
 
   final GeocodingRepository _geocoding;
+  final VenuesRepository _venues;
+  final LocationService _location;
   final Duration debounce;
+
+  /// Venues are only drawn when zoomed in enough to see individual streets.
+  static const double minVenueZoom = 15;
 
   Timer? _timer;
 
@@ -2347,15 +2451,29 @@ class LocationPickerCubit extends Cubit<LocationPickerState> {
   void mapMoving(LatLng center) {
     _timer?.cancel();
     _lookup++; // whatever is in flight is already outdated
-    emit(state.copyWith(center: center, clearMessage: true));
+    emit(
+      state.copyWith(center: center, clearSelected: true, clearMessage: true),
+    );
   }
 
-  /// The user let go of the map: look up the address after [debounce].
-  void mapMoved(LatLng center) {
+  /// The user let go of the map: look up the address (and the venues in
+  /// [viewport]) after [debounce].
+  void mapMoved(LatLng center, {MapViewport? viewport}) {
     _timer?.cancel();
     _lookup++;
-    emit(state.copyWith(center: center));
-    _timer = Timer(debounce, () => _resolve(center));
+    emit(state.copyWith(center: center, clearSelected: true));
+    _timer = Timer(debounce, () {
+      _resolve(center);
+      if (viewport != null && viewport.zoom >= minVenueZoom) {
+        _loadVenues(viewport.bounds);
+      }
+    });
+  }
+
+  /// Loads the venues of the first view of the map (when the picker opens,
+  /// or after the map is ready) without touching the address.
+  void showVenuesIn(MapViewport viewport) {
+    if (viewport.zoom >= minVenueZoom) _loadVenues(viewport.bounds);
   }
 
   Future<void> _resolve(LatLng center) async {
@@ -2393,8 +2511,19 @@ class LocationPickerCubit extends Cubit<LocationPickerState> {
     }
   }
 
-  /// Runs the typed search. One match centres the map on it; several are
-  /// listed so the user can choose.
+  /// Fetches venues for the markers. Not part of [_lookup]: it does not
+  /// block or cancel the address lookup, and its failure is ignored.
+  Future<void> _loadVenues(GeoBounds bounds) async {
+    try {
+      final List<GeocodingResult> found = await _venues.nearby(bounds);
+      if (!isClosed) emit(state.copyWith(venues: found));
+    } on GeocodingFailure {
+      // Markers are optional.
+    }
+  }
+
+  /// Runs the typed search: venues with that name near the map centre, and
+  /// addresses. One match centres the map on it; several are listed.
   Future<void> search(String query) async {
     final String q = query.trim();
     if (q.isEmpty) return;
@@ -2407,22 +2536,115 @@ class LocationPickerCubit extends Cubit<LocationPickerState> {
         clearMessage: true,
       ),
     );
-    try {
-      final List<GeocodingResult> found = await _geocoding.search(q);
-      if (isClosed || mine != _lookup) return;
-      if (found.isEmpty) {
-        emit(
-          state.copyWith(
-            status: LocationPickerStatus.error,
-            message: AppStrings.searchNoResults,
-          ),
-        );
-      } else if (found.length == 1) {
-        _select(found.first);
-      } else {
-        emit(state.copyWith(status: LocationPickerStatus.idle, results: found));
+    GeocodingFailure? failure;
+    Future<List<GeocodingResult>> safe(
+      Future<List<GeocodingResult>> call,
+    ) async {
+      try {
+        return await call;
+      } on GeocodingFailure catch (f) {
+        failure = f;
+        return const [];
       }
-    } on GeocodingFailure catch (failure) {
+    }
+
+    final List<List<GeocodingResult>> both = await Future.wait([
+      safe(
+        _venues.searchByName(
+          q,
+          latitude: state.center.latitude,
+          longitude: state.center.longitude,
+        ),
+      ),
+      safe(_geocoding.search(q)),
+    ]);
+    if (isClosed || mine != _lookup) return;
+
+    final List<GeocodingResult> merged = _merge(both[0], both[1]);
+    if (merged.isEmpty) {
+      emit(
+        state.copyWith(
+          status: LocationPickerStatus.error,
+          message: failure?.message ?? AppStrings.searchNoResults,
+        ),
+      );
+    } else if (merged.length == 1) {
+      _select(merged.first);
+    } else {
+      emit(state.copyWith(status: LocationPickerStatus.idle, results: merged));
+    }
+  }
+
+  /// Venues first (they are what the user usually means), then addresses,
+  /// without the same spot twice.
+  static List<GeocodingResult> _merge(
+    List<GeocodingResult> venues,
+    List<GeocodingResult> addresses,
+  ) {
+    final List<GeocodingResult> out = [...venues.take(6)];
+    for (final GeocodingResult a in addresses) {
+      final bool duplicate = out.any(
+        (GeocodingResult v) =>
+            (v.latitude - a.latitude).abs() < 0.0003 &&
+            (v.longitude - a.longitude).abs() < 0.0003,
+      );
+      if (!duplicate) out.add(a);
+      if (out.length >= 8) break;
+    }
+    return out;
+  }
+
+  /// The user picked a listed match or tapped a venue marker.
+  void selectResult(GeocodingResult result) => _select(result);
+
+  void _select(GeocodingResult result) {
+    _lookup++;
+    emit(
+      state.copyWith(
+        center: LatLng(result.latitude, result.longitude),
+        status: LocationPickerStatus.ready,
+        title: result.title,
+        address: result.displayName,
+        results: const [],
+        selected: result.isVenue ? result : null,
+        clearSelected: !result.isVenue,
+        clearMessage: true,
+        recenter: true,
+      ),
+    );
+    // Show what else is around the chosen spot.
+    _loadVenues(GeoBounds.around(result.latitude, result.longitude));
+  }
+
+  /// "My location": reads the phone's position, moves the map there, names
+  /// the spot and shows the venues around it.
+  Future<void> useMyLocation() async {
+    if (state.status == LocationPickerStatus.locating) return;
+    _timer?.cancel();
+    final int mine = ++_lookup;
+    emit(
+      state.copyWith(
+        status: LocationPickerStatus.locating,
+        results: const [],
+        clearMessage: true,
+      ),
+    );
+    try {
+      final ({double latitude, double longitude}) here = await _location
+          .currentPosition();
+      if (isClosed || mine != _lookup) return;
+      final LatLng point = LatLng(here.latitude, here.longitude);
+      emit(
+        state.copyWith(
+          center: point,
+          status: LocationPickerStatus.resolving,
+          clearSelected: true,
+          recenter: true,
+        ),
+      );
+      _loadVenues(GeoBounds.around(here.latitude, here.longitude));
+      await _resolve(point);
+    } on LocationFailure catch (failure) {
       if (isClosed || mine != _lookup) return;
       emit(
         state.copyWith(
@@ -2453,34 +2675,22 @@ class LocationPickerCubit extends Cubit<LocationPickerState> {
     }
   }
 
-  /// The user picked one of the listed matches.
-  void selectResult(GeocodingResult result) => _select(result);
-
-  void _select(GeocodingResult result) {
-    _lookup++;
-    emit(
-      state.copyWith(
-        center: LatLng(result.latitude, result.longitude),
-        status: LocationPickerStatus.ready,
-        title: result.title,
-        address: result.displayName,
-        results: const [],
-        clearMessage: true,
-        recenter: true,
-      ),
+  /// What the form receives. The address falls back to the coordinates when
+  /// no address could be resolved (e.g. offline). A chosen venue also hands
+  /// over its name and kind.
+  PickedLocation get picked {
+    final GeocodingResult? venue = state.selected;
+    return PickedLocation(
+      address: state.hasAddress
+          ? state.address
+          : '${state.center.latitude.toStringAsFixed(5)}, '
+                '${state.center.longitude.toStringAsFixed(5)}',
+      latitude: state.center.latitude,
+      longitude: state.center.longitude,
+      name: venue?.title,
+      category: venue?.category,
     );
   }
-
-  /// What the form receives. The address falls back to the coordinates when
-  /// no address could be resolved (e.g. offline).
-  PickedLocation get picked => PickedLocation(
-    address: state.hasAddress
-        ? state.address
-        : '${state.center.latitude.toStringAsFixed(5)}, '
-              '${state.center.longitude.toStringAsFixed(5)}',
-    latitude: state.center.latitude,
-    longitude: state.center.longitude,
-  );
 
   @override
   Future<void> close() {
@@ -2878,7 +3088,8 @@ class _PhotoFallback extends StatelessWidget {
 ```dart
 import 'dart:ui';
 
-import 'package:flutter/cupertino.dart' show CupertinoActivityIndicator;
+import 'package:flutter/cupertino.dart'
+    show CupertinoActivityIndicator, CupertinoIcons;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -2898,7 +3109,10 @@ import '../../../core/widgets/osm_tile_layer.dart';
 import '../../../core/widgets/pressable_opacity.dart';
 import '../../../data/models/geocoding_result.dart';
 import '../../../data/repositories/geocoding_repository.dart';
+import '../../../data/repositories/venues_repository.dart';
+import '../../../data/services/location_service.dart';
 import '../bloc/location_picker_cubit.dart';
+import '../widgets/venue_marker.dart';
 import '../../../core/widgets/app_text_link.dart';
 import '../../../core/widgets/primary_button.dart';
 
@@ -2922,6 +3136,8 @@ class LocationPickerScreen extends StatelessWidget {
     return BlocProvider<LocationPickerCubit>(
       create: (BuildContext context) => LocationPickerCubit(
         geocoding: context.read<GeocodingRepository>(),
+        venues: context.read<VenuesRepository>(),
+        location: context.read<LocationService>(),
         initialCenter: start != null && start.hasPoint
             ? LatLng(start.latitude!, start.longitude!)
             : MapDefaults.center,
@@ -2958,9 +3174,6 @@ class _LocationPickerViewState extends State<_LocationPickerView> {
     final LocationPickerCubit cubit = context.read<LocationPickerCubit>();
     if (start != null && !start.hasPoint && start.address.isNotEmpty) {
       cubit.centerOnAddress(start.address);
-    } else if (start == null || start.address.isEmpty) {
-      // A fresh picker: name the point it opens on, like a drag would.
-      cubit.mapMoved(cubit.state.center);
     }
   }
 
@@ -2971,6 +3184,33 @@ class _LocationPickerViewState extends State<_LocationPickerView> {
     super.dispose();
   }
 
+  /// The part of the map the user sees now, for the venue markers.
+  MapViewport _viewport(MapCamera camera) {
+    final LatLngBounds b = camera.visibleBounds;
+    return MapViewport(
+      bounds: GeoBounds(
+        south: b.south,
+        west: b.west,
+        north: b.north,
+        east: b.east,
+      ),
+      zoom: camera.zoom,
+    );
+  }
+
+  /// First frame of the map: name the starting point (a fresh picker only —
+  /// an edited place keeps its saved address) and show venues around it.
+  void _onMapReady() {
+    final LocationPickerCubit cubit = context.read<LocationPickerCubit>();
+    final MapViewport view = _viewport(_map.camera);
+    final LocationPickerArgs? start = widget.initial;
+    if (start == null || start.address.isEmpty) {
+      cubit.mapMoved(cubit.state.center, viewport: view);
+    } else {
+      cubit.showVenuesIn(view);
+    }
+  }
+
   void _onMapEvent(MapEvent event) {
     // Moves made by the cubit itself (after a search) are not the user's.
     if (event.source == MapEventSource.mapController) return;
@@ -2979,7 +3219,7 @@ class _LocationPickerViewState extends State<_LocationPickerView> {
       setState(() => _dragging = true);
     } else if (event is MapEventMoveEnd) {
       setState(() => _dragging = false);
-      cubit.mapMoved(event.camera.center);
+      cubit.mapMoved(event.camera.center, viewport: _viewport(event.camera));
     } else if (event is MapEventMove) {
       cubit.mapMoving(event.camera.center);
     }
@@ -3019,8 +3259,34 @@ class _LocationPickerViewState extends State<_LocationPickerView> {
                 initialZoom: MapDefaults.zoom,
                 backgroundColor: OsmTileLayer.background,
                 onMapEvent: _onMapEvent,
+                onMapReady: _onMapReady,
               ),
-              children: const [OsmTileLayer()],
+              children: [
+                const OsmTileLayer(),
+                // Venues around the view, as the app's own markers (OSM tiles
+                // carry no cafe icons). Tapping one chooses it.
+                BlocBuilder<LocationPickerCubit, LocationPickerState>(
+                  buildWhen: (a, b) =>
+                      a.venues != b.venues || a.selected != b.selected,
+                  builder: (BuildContext context, LocationPickerState state) =>
+                      MarkerLayer(
+                        markers: [
+                          for (final GeocodingResult v in state.venues)
+                            Marker(
+                              point: LatLng(v.latitude, v.longitude),
+                              width: VenueMarker.size,
+                              height: VenueMarker.size,
+                              child: VenueMarker(
+                                category: v.category!,
+                                label: v.title,
+                                selected: state.selected == v,
+                                onTap: () => cubit.selectResult(v),
+                              ),
+                            ),
+                        ],
+                      ),
+                ),
+              ],
             ),
             const IgnorePointer(
               child: DecoratedBox(
@@ -3074,9 +3340,70 @@ class _LocationPickerViewState extends State<_LocationPickerView> {
                 ),
               ),
             ),
+            // Under the search panel, out of the column's height so it never
+            // adds to it (small screens, open keyboard). Hidden while a list of
+            // results is shown, which would sit under it.
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 84, right: AppSpacing.l),
+                child: Align(
+                  alignment: Alignment.topRight,
+                  child: BlocBuilder<LocationPickerCubit, LocationPickerState>(
+                    buildWhen: (a, b) => a.results.isEmpty != b.results.isEmpty,
+                    builder: (BuildContext context, LocationPickerState s) =>
+                        s.results.isEmpty
+                        ? const _MyLocationButton()
+                        : const SizedBox.shrink(),
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Round button that moves the map to where the phone is.
+class _MyLocationButton extends StatelessWidget {
+  const _MyLocationButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<LocationPickerCubit, LocationPickerState>(
+      buildWhen: (a, b) =>
+          (a.status == LocationPickerStatus.locating) !=
+          (b.status == LocationPickerStatus.locating),
+      builder: (BuildContext context, LocationPickerState state) {
+        final bool busy = state.status == LocationPickerStatus.locating;
+        return Semantics(
+          button: true,
+          label: AppStrings.myLocationLabel,
+          child: PressableOpacity(
+            onTap: busy
+                ? null
+                : () => context.read<LocationPickerCubit>().useMyLocation(),
+            child: Container(
+              width: AppSpacing.minTapTarget,
+              height: AppSpacing.minTapTarget,
+              alignment: Alignment.center,
+              decoration: const BoxDecoration(
+                color: AppColors.glass95,
+                shape: BoxShape.circle,
+                boxShadow: AppShadows.floating,
+              ),
+              child: busy
+                  ? const CupertinoActivityIndicator()
+                  : const Icon(
+                      CupertinoIcons.location_fill,
+                      size: 20,
+                      color: AppColors.primary,
+                    ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -3131,22 +3458,35 @@ class _SearchResults extends StatelessWidget {
                       ),
                       child: Align(
                         alignment: Alignment.centerLeft,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        child: Row(
+                          spacing: AppSpacing.sm,
                           children: [
-                            Text(
-                              r.title,
-                              style: AppTextStyles.subheadline,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            Text(
-                              r.displayName,
-                              style: AppTextStyles.footnote.copyWith(
-                                color: AppColors.textSecondary,
+                            if (r.category != null)
+                              Icon(
+                                venueIcon(r.category!),
+                                size: 18,
+                                color: AppColors.primary,
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    r.title,
+                                    style: AppTextStyles.subheadline,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  Text(
+                                    r.displayName,
+                                    style: AppTextStyles.footnote.copyWith(
+                                      color: AppColors.textSecondary,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
                             ),
                           ],
                         ),
@@ -3205,7 +3545,11 @@ class _SearchBar extends StatelessWidget {
               child: Row(
                 spacing: AppSpacing.sm,
                 children: [
-                  const AppSvgIcon(AppAssets.iconSearch),
+                  GestureDetector(
+                    onTap: onSubmitted,
+                    behavior: HitTestBehavior.opaque,
+                    child: const AppSvgIcon(AppAssets.iconSearch),
+                  ),
                   Expanded(
                     child: TextField(
                       controller: controller,
@@ -3794,6 +4138,8 @@ import 'data/repositories/fake_media_repository.dart';
 import 'data/repositories/geocoding_repository.dart';
 import 'data/repositories/in_memory_places_repository.dart';
 import 'data/repositories/nominatim_geocoding_repository.dart';
+import 'data/repositories/overpass_venues_repository.dart';
+import 'data/repositories/venues_repository.dart';
 import 'data/repositories/media_repository.dart';
 import 'data/repositories/supabase_media_repository.dart';
 import 'data/repositories/user_profile_repository.dart';
@@ -3804,6 +4150,7 @@ import 'data/repositories/settings_repository.dart';
 import 'data/repositories/shared_prefs_settings_repository.dart';
 import 'data/services/analytics_service.dart';
 import 'data/services/crash_reporter.dart';
+import 'data/services/location_service.dart';
 import 'data/services/map_launcher.dart';
 import 'data/services/photo_picker_service.dart';
 import 'data/services/supabase_config.dart';
@@ -3875,6 +4222,12 @@ Future<void> main() async {
       : NominatimGeocodingRepository(
           languageCode: PlatformDispatcher.instance.locale.languageCode,
         );
+  final VenuesRepository venues = fake
+      ? FakeVenuesRepository()
+      : OverpassVenuesRepository();
+  final LocationService location = fake
+      ? FakeLocationService()
+      : const GeolocatorLocationService();
   final MapLauncher mapLauncher = fake
       ? FakeMapLauncher()
       : const UrlLauncherMapLauncher();
@@ -3899,6 +4252,8 @@ Future<void> main() async {
         RepositoryProvider<UserProfileRepository>.value(value: profiles),
         RepositoryProvider<MediaRepository>.value(value: media),
         RepositoryProvider<GeocodingRepository>.value(value: geocoding),
+        RepositoryProvider<VenuesRepository>.value(value: venues),
+        RepositoryProvider<LocationService>.value(value: location),
         RepositoryProvider<MapLauncher>.value(value: mapLauncher),
         RepositoryProvider<PhotoPickerService>.value(
           value: ImagePickerPhotoService(),
@@ -4011,6 +4366,7 @@ class UserScope extends StatelessWidget {
                 auth: context.read<AuthRepository>(),
                 analytics: context.read<AnalyticsService>(),
                 profiles: context.read<UserProfileRepository>(),
+                media: context.read<MediaRepository>(),
               )..add(const ProfileStarted()),
             ),
           ],
