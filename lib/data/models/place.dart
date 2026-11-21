@@ -108,6 +108,7 @@ class Place {
   /// Every field is replaceable because the Edit Place form rebuilds the
   /// whole record; `null` arguments keep the current value.
   Place copyWith({
+    String? id,
     String? name,
     PlaceCategory? category,
     String? subtitle,
@@ -122,7 +123,7 @@ class Place {
     List<PlacePhoto>? photos,
   }) {
     return Place(
-      id: id,
+      id: id ?? this.id,
       name: name ?? this.name,
       category: category ?? this.category,
       subtitle: subtitle ?? this.subtitle,

@@ -2,6 +2,8 @@ import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:places_catalog/data/mock/mock_places.dart';
 import 'package:places_catalog/data/models/place.dart';
+import 'package:places_catalog/data/models/place_photo.dart';
+import 'package:places_catalog/data/repositories/fake_media_repository.dart';
 import 'package:places_catalog/data/repositories/in_memory_places_repository.dart';
 import 'package:places_catalog/data/repositories/in_memory_settings_repository.dart';
 import 'package:places_catalog/data/repositories/places_repository.dart';
@@ -49,14 +51,20 @@ void main() {
     'isFavorite': false,
   });
 
+  late FakeMediaRepository media;
+
   PlacesBloc make(PlacesRepository repo) => PlacesBloc(
     uid: 'u1',
     repository: repo,
     analytics: analytics,
+    media: media,
     crashReporter: const NoopCrashReporter(),
   );
 
-  setUp(() => analytics = _RecordingAnalytics());
+  setUp(() {
+    analytics = _RecordingAnalytics();
+    media = FakeMediaRepository();
+  });
 
   /// Starts the bloc and waits until the catalog has arrived.
   Future<void> loaded(PlacesBloc b) async {
@@ -123,28 +131,6 @@ void main() {
       await bloc.close();
     });
 
-    test('create appends the place and saves it', () async {
-      final PlacesBloc bloc = make(InMemoryPlacesRepository());
-      await loaded(bloc);
-      bloc.add(PlaceCreated(fresh));
-      final PlacesState s = await bloc.stream.firstWhere(
-        (PlacesState s) => s.byId('fresh') != null,
-      );
-      expect(s.places.length, mockPlaces.length + 1);
-      await bloc.close();
-    });
-
-    test('update replaces the place with the same id', () async {
-      final PlacesBloc bloc = make(InMemoryPlacesRepository());
-      await loaded(bloc);
-      bloc.add(PlaceUpdated(mockPlaces.first.copyWith(name: 'Renamed')));
-      final PlacesState s = await bloc.stream.firstWhere(
-        (PlacesState s) => s.byId(mockPlaces.first.id)?.name == 'Renamed',
-      );
-      expect(s.places.length, mockPlaces.length);
-      await bloc.close();
-    });
-
     test('delete removes the place', () async {
       final PlacesBloc bloc = make(InMemoryPlacesRepository());
       await loaded(bloc);
@@ -171,7 +157,7 @@ void main() {
     test('a failed save keeps the list and reports an error', () async {
       final PlacesBloc bloc = make(_FailingSaves());
       await loaded(bloc);
-      bloc.add(PlaceCreated(fresh));
+      bloc.add(PlaceFavoriteToggled(mockPlaces.first.id));
       final PlacesState s = await bloc.stream.firstWhere(
         (PlacesState s) => s.errorMessage != null,
       );
@@ -179,6 +165,51 @@ void main() {
       expect(s.status, PlacesStatus.loaded);
       await bloc.close();
     });
+
+    test('deleting a place also deletes its uploaded files', () async {
+      final Place withFiles = mockPlaces.first.copyWith(
+        id: 'with-files',
+        photos: [
+          PlacePhoto.remote(
+            url: 'https://cdn.example/a.jpg',
+            storagePath: 'users/u1/with-files/a.jpg',
+            fileSizeBytes: 1,
+            contentType: 'image/jpeg',
+            uploadedAt: DateTime.utc(2026),
+          ),
+          const PlacePhoto.asset('assets/images/photo_coffee.jpg'),
+        ],
+      );
+      final InMemoryPlacesRepository repo = InMemoryPlacesRepository();
+      await repo.savePlace('u1', withFiles);
+      final PlacesBloc bloc = make(repo);
+      await loaded(bloc);
+      bloc.add(const PlaceDeleted('with-files'));
+      await bloc.stream.firstWhere(
+        (PlacesState s) => s.byId('with-files') == null,
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      // Only the uploaded file is deleted; a bundled asset has no file.
+      expect(media.deleted, ['users/u1/with-files/a.jpg']);
+      await bloc.close();
+    });
+
+    test(
+      'a failed delete keeps the files; a failed file cleanup is harmless',
+      () async {
+        final InMemoryPlacesRepository repo = InMemoryPlacesRepository();
+        final PlacesBloc bloc = make(repo);
+        await loaded(bloc);
+        media.failDeletes = true; // storage cleanup fails…
+        bloc.add(PlaceDeleted(mockPlaces.first.id));
+        final PlacesState s = await bloc.stream.firstWhere(
+          (PlacesState s) => s.byId(mockPlaces.first.id) == null,
+        );
+        // …but the deletion itself stands, with no error shown.
+        expect(s.errorMessage, isNull);
+        await bloc.close();
+      },
+    );
 
     test('opening a place only logs analytics', () async {
       final PlacesBloc bloc = make(InMemoryPlacesRepository());

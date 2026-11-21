@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import '../../core/errors/places_failure.dart';
 import '../models/place_photo.dart';
 import 'media_repository.dart';
@@ -16,6 +18,9 @@ class FakeMediaRepository implements MediaRepository {
   /// Delete requests fail too (to prove they never block a save).
   bool failDeletes = false;
 
+  /// While set, uploads wait for it (to test "a second tap is ignored").
+  Completer<void>? gate;
+
   final List<String> uploaded = [];
   final List<String> deleted = [];
   int _uploads = 0;
@@ -33,6 +38,7 @@ class FakeMediaRepository implements MediaRepository {
       throw const PlacesFailure(PlacesFailureType.storageNotConfigured);
     }
     _uploads++;
+    await gate?.future;
     if (failOnUpload == _uploads) throw failure;
     final String path = 'users/$uid/$placeId/fake-$_uploads.jpg';
     uploaded.add(path);

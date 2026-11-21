@@ -10,6 +10,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/errors/places_failure.dart';
 import '../../../data/models/place.dart';
+import '../../../data/models/place_photo.dart';
+import '../../../data/repositories/media_repository.dart';
 import '../../../data/repositories/places_repository.dart';
 import '../../../data/services/analytics_service.dart';
 import '../../../data/services/crash_reporter.dart';
@@ -35,16 +37,16 @@ class PlacesBloc extends Bloc<PlacesEvent, PlacesState> {
     required this.uid,
     required PlacesRepository repository,
     required AnalyticsService analytics,
+    required MediaRepository media,
     required CrashReporter crashReporter,
   }) : _repository = repository,
+       _media = media,
        _analytics = analytics,
        _crashReporter = crashReporter,
        super(const PlacesState()) {
     on<PlacesLoadRequested>(_onLoad);
     on<_PlacesArrived>(_onArrived);
     on<_PlacesStreamFailed>(_onStreamFailed);
-    on<PlaceCreated>(_onCreated);
-    on<PlaceUpdated>(_onUpdated);
     on<PlaceDeleted>(_onDeleted);
     on<PlaceFavoriteToggled>(_onFavoriteToggled);
     on<PlaceOpened>(_onOpened);
@@ -52,6 +54,7 @@ class PlacesBloc extends Bloc<PlacesEvent, PlacesState> {
 
   final String uid;
   final PlacesRepository _repository;
+  final MediaRepository _media;
   final AnalyticsService _analytics;
   final CrashReporter _crashReporter;
 
@@ -105,12 +108,6 @@ class PlacesBloc extends Bloc<PlacesEvent, PlacesState> {
     );
   }
 
-  Future<void> _onCreated(PlaceCreated event, Emitter<PlacesState> emit) =>
-      _save(emit, event.place);
-
-  Future<void> _onUpdated(PlaceUpdated event, Emitter<PlacesState> emit) =>
-      _save(emit, event.place);
-
   Future<void> _onFavoriteToggled(
     PlaceFavoriteToggled event,
     Emitter<PlacesState> emit,
@@ -127,12 +124,34 @@ class PlacesBloc extends Bloc<PlacesEvent, PlacesState> {
   }
 
   Future<void> _onDeleted(PlaceDeleted event, Emitter<PlacesState> emit) async {
+    final Place? place = state.byId(event.placeId);
     emit(state.copyWith(clearError: true));
     try {
       await _repository.deletePlace(uid, event.placeId);
       // No emit: the live stream delivers the shorter list.
     } catch (error, stack) {
       await _failSave(emit, error, stack);
+      return; // the record is still there, so keep its files
+    }
+    // The record is gone; now its files. Best-effort: a failure leaves
+    // orphan files (logged), it must not bring the deleted place back.
+    if (place != null) await _deleteFiles(place);
+  }
+
+  Future<void> _deleteFiles(Place place) async {
+    final List<String> paths = [
+      for (final PlacePhoto p in place.photos)
+        if (p.storagePath != null) p.storagePath!,
+    ];
+    if (paths.isEmpty) return;
+    try {
+      await _media.deleteAll(paths);
+    } catch (error, stack) {
+      await _crashReporter.recordError(
+        error,
+        stack,
+        reason: 'Deleting files of a deleted place failed (orphans)',
+      );
     }
   }
 

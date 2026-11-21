@@ -20,6 +20,8 @@ import '../../../core/widgets/tag_list.dart';
 import '../../../app/dev_launch_options.dart';
 import '../../../core/validation/validators.dart';
 import '../../../core/widgets/app_confirm_dialog.dart';
+import '../../../core/widgets/app_text_link.dart';
+import '../../../core/widgets/error_banner.dart';
 import '../../../data/models/place.dart';
 import '../../../data/services/photo_picker_service.dart';
 import '../../../data/models/place_category.dart';
@@ -28,6 +30,8 @@ import '../../../data/models/review.dart';
 import '../widgets/form_group.dart';
 import '../widgets/photo_picker_panel.dart';
 import '../widgets/star_rating_input.dart';
+import '../bloc/create_place_bloc.dart';
+import '../bloc/update_place_bloc.dart';
 import 'add_place_pickers.dart';
 
 /// Create (`initial == null`) or edit (`initial != null`) a place — FR4, FR8.
@@ -79,6 +83,12 @@ class _PlaceFormScreenState extends State<PlaceFormScreen> {
   @override
   void initState() {
     super.initState();
+    // A result from an earlier visit must not greet the user.
+    if (widget.initial == null) {
+      context.read<CreatePlaceBloc>().add(const CreatePlaceReset());
+    } else {
+      context.read<UpdatePlaceBloc>().add(const UpdatePlaceReset());
+    }
     final Place? place = widget.initial;
     final Review? review = place?.review;
     _nameController = TextEditingController(
@@ -179,8 +189,9 @@ class _PlaceFormScreenState extends State<PlaceFormScreen> {
     );
     final bool sameCategory = old != null && old.category == _category;
     return Place(
-      // Local id: no backend yet, microseconds are unique enough per device.
-      id: old?.id ?? DateTime.now().microsecondsSinceEpoch.toString(),
+      // A new place gets its real id from `CreatePlaceBloc` (photos are
+      // stored under it), so the draft carries an empty one.
+      id: old?.id ?? '',
       name: _nameController.text.trim(),
       category: _category,
       subtitle: sameCategory
@@ -188,10 +199,14 @@ class _PlaceFormScreenState extends State<PlaceFormScreen> {
           : (AppStrings.categorySingular[_category] ?? _category.name),
       address: _location,
       visitDate: _visitDate,
+      // The bloc swaps in the uploaded copy of the first photo. Without
+      // photos: keep a bundled cover, never one whose file was deleted.
       coverImage: photos.isNotEmpty
           ? photos.first
-          : (old?.coverImage ??
-                const PlacePhoto.asset(AppAssets.photoStorefront)),
+          : (old != null && !old.coverImage.isRemote
+                ? old.coverImage
+                : const PlacePhoto.asset(AppAssets.photoStorefront)),
+      createdAt: old?.createdAt,
       review: review,
       isFavorite: old?.isFavorite ?? false,
       latitude: old?.latitude,
@@ -207,7 +222,47 @@ class _PlaceFormScreenState extends State<PlaceFormScreen> {
   void _save() {
     setState(() => _submitted = true);
     if (!_formKey.currentState!.validate()) return;
-    Navigator.of(context).pop(_buildPlace());
+    final Place draft = _buildPlace();
+    // The blocs ignore a second tap while a save is running. Closing the
+    // form is the success listener's job.
+    final Place? original = widget.initial;
+    if (original == null) {
+      context.read<CreatePlaceBloc>().add(CreatePlaceSubmitted(draft));
+    } else {
+      context.read<UpdatePlaceBloc>().add(
+        UpdatePlaceSubmitted(original: original, draft: draft),
+      );
+    }
+  }
+
+  /// What the save buttons area shows, from the bloc of the current mode.
+  _SaveView _saveView(BuildContext context) {
+    if (_isEditing) {
+      return switch (context.watch<UpdatePlaceBloc>().state) {
+        PlaceUpdatingState(
+          origin: UpdateOrigin.form,
+          :final uploaded,
+          :final total,
+        ) =>
+          _SaveView.busy(uploaded, total),
+        PlaceUpdateErrorState(
+          origin: UpdateOrigin.form,
+          :final message,
+          :final retryable,
+        ) =>
+          _SaveView.error(message, retryable),
+        _ => const _SaveView.idle(),
+      };
+    }
+    return switch (context.watch<CreatePlaceBloc>().state) {
+      PlaceCreatingState(:final uploaded, :final total) => _SaveView.busy(
+        uploaded,
+        total,
+      ),
+      PlaceCreateErrorState(:final message, :final retryable) =>
+        _SaveView.error(message, retryable),
+      _ => const _SaveView.idle(),
+    };
   }
 
   Future<void> _pickCategory() async {
@@ -245,164 +300,255 @@ class _PlaceFormScreenState extends State<PlaceFormScreen> {
       AppStrings.ratingService: AppAssets.iconRatingService,
       AppStrings.ratingAtmosphere: AppAssets.iconRatingAtmosphere,
     };
-    return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: AppNavHeader(
-        leading: const NavBackButton(),
-        title: _isEditing
-            ? AppStrings.editPlaceTitle
-            : AppStrings.addPlaceTitle,
-      ),
-      body: Builder(
-        builder: (BuildContext context) {
-          final EdgeInsets insets = MediaQuery.paddingOf(context);
-          return Form(
-            key: _formKey,
-            autovalidateMode: _submitted
-                ? AutovalidateMode.always
-                : AutovalidateMode.disabled,
-            child: ListView(
-              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              padding: EdgeInsets.fromLTRB(
-                AppSpacing.screen,
-                insets.top + 7,
-                AppSpacing.screen,
-                insets.bottom + AppSpacing.xxl,
-              ),
-              children: [
-                PhotoPickerPanel(
-                  photos: _photos,
-                  maxPhotos: _maxPhotos,
-                  onAdd: _addPhoto,
-                  onRemove: _removePhoto,
-                ),
-                const SizedBox(height: AppSpacing.l),
-                FormSection(
-                  title: AppStrings.venueInfo,
-                  child: FormGroup(
-                    rows: [
-                      FormRow(
-                        label: const _RowLabel(AppStrings.placeName),
-                        trailing: TextField(
-                          controller: _nameController,
-                          onChanged: (_) => _revalidate(),
-                          textAlign: TextAlign.right,
-                          style: AppTextStyles.body,
-                          onTapOutside: (_) => FocusScope.of(context).unfocus(),
-                          decoration: InputDecoration.collapsed(
-                            hintText: AppStrings.placeNameHint,
-                            // A hint must look like a hint, not like a value.
-                            hintStyle: AppTextStyles.body.copyWith(
-                              color: AppColors.textTertiary,
+    final _SaveView save = _saveView(context);
+    // While saving, the form cannot be left or edited by accident: touches
+    // are ignored and the back swipe is blocked until the bloc finishes.
+    return PopScope(
+      canPop: !save.busy,
+      child: IgnorePointer(
+        ignoring: save.busy,
+        child: MultiBlocListener(
+          listeners: [
+            BlocListener<CreatePlaceBloc, CreatePlaceState>(
+              listenWhen: (_, CreatePlaceState now) =>
+                  now is PlaceCreateSuccessState,
+              listener: (BuildContext context, _) =>
+                  Navigator.of(context).pop(),
+            ),
+            BlocListener<UpdatePlaceBloc, UpdatePlaceState>(
+              listenWhen: (_, UpdatePlaceState now) =>
+                  now is PlaceUpdateSuccessState &&
+                  now.origin == UpdateOrigin.form,
+              listener: (BuildContext context, _) =>
+                  Navigator.of(context).pop(),
+            ),
+          ],
+          child: Scaffold(
+            extendBodyBehindAppBar: true,
+            appBar: AppNavHeader(
+              leading: const NavBackButton(),
+              title: _isEditing
+                  ? AppStrings.editPlaceTitle
+                  : AppStrings.addPlaceTitle,
+            ),
+            body: Builder(
+              builder: (BuildContext context) {
+                final EdgeInsets insets = MediaQuery.paddingOf(context);
+                return Form(
+                  key: _formKey,
+                  autovalidateMode: _submitted
+                      ? AutovalidateMode.always
+                      : AutovalidateMode.disabled,
+                  child: ListView(
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    padding: EdgeInsets.fromLTRB(
+                      AppSpacing.screen,
+                      insets.top + 7,
+                      AppSpacing.screen,
+                      insets.bottom + AppSpacing.xxl,
+                    ),
+                    children: [
+                      PhotoPickerPanel(
+                        photos: _photos,
+                        maxPhotos: _maxPhotos,
+                        onAdd: _addPhoto,
+                        onRemove: _removePhoto,
+                      ),
+                      const SizedBox(height: AppSpacing.l),
+                      FormSection(
+                        title: AppStrings.venueInfo,
+                        child: FormGroup(
+                          rows: [
+                            FormRow(
+                              label: const _RowLabel(AppStrings.placeName),
+                              trailing: TextField(
+                                controller: _nameController,
+                                onChanged: (_) => _revalidate(),
+                                textAlign: TextAlign.right,
+                                style: AppTextStyles.body,
+                                onTapOutside: (_) =>
+                                    FocusScope.of(context).unfocus(),
+                                decoration: InputDecoration.collapsed(
+                                  hintText: AppStrings.placeNameHint,
+                                  // A hint must look like a hint, not like a value.
+                                  hintStyle: AppTextStyles.body.copyWith(
+                                    color: AppColors.textTertiary,
+                                  ),
+                                ),
+                              ),
                             ),
+                            FormRow(
+                              label: const _RowLabel(AppStrings.category),
+                              trailing: _ValueButton(
+                                text:
+                                    AppStrings.categorySingular[_category] ??
+                                    '',
+                                icon: AppAssets.iconChevronUpDown,
+                                onTap: _pickCategory,
+                              ),
+                            ),
+                            FormRow(
+                              label: const _RowLabel(AppStrings.location),
+                              trailing: _ValueButton(
+                                text: _location.isEmpty
+                                    ? AppStrings.locationHint
+                                    : _location,
+                                isPlaceholder: _location.isEmpty,
+                                icon: AppAssets.iconMapPinned,
+                                onTap: _pickLocation,
+                              ),
+                            ),
+                            FormRow(
+                              label: const _RowLabel(AppStrings.dateOfVisit),
+                              trailing: _DatePill(
+                                date: _visitDate,
+                                onTap: _pickDate,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      _FieldError(
+                        validator: (_) =>
+                            Validators.placeName(_nameController.text),
+                      ),
+                      _FieldError(
+                        validator: (_) => Validators.location(_location),
+                      ),
+                      const SizedBox(height: AppSpacing.l),
+                      FormSection(
+                        title: AppStrings.experienceRatings,
+                        trailing: Text(
+                          _averageRating.toStringAsFixed(1) +
+                              AppStrings.avgSuffix,
+                          style: AppTextStyles.captionMedium.copyWith(
+                            color: AppColors.cafeAccent,
+                          ),
+                        ),
+                        child: FormGroup(
+                          rows: _ratings.entries
+                              .map(
+                                (MapEntry<String, int> e) => FormRow(
+                                  fixedTrailing: true,
+                                  label: Row(
+                                    spacing: AppSpacing.sm,
+                                    children: [
+                                      AppSvgIcon(ratingIcons[e.key]!),
+                                      Flexible(child: _RowLabel(e.key)),
+                                    ],
+                                  ),
+                                  trailing: StarRatingInput(
+                                    value: e.value,
+                                    onChanged: (int v) =>
+                                        setState(() => _ratings[e.key] = v),
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.l),
+                      FormSection(
+                        title: AppStrings.personalNotes,
+                        trailing: const _SectionNote(AppStrings.privateToYou),
+                        child: _NotesCard(
+                          controller: _notesController,
+                          onChanged: (_) => setState(() {}),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.l),
+                      FormSection(
+                        title: AppStrings.tags,
+                        trailing: _SectionNote(
+                          '${_tags.length}${AppStrings.tagsSuffix}',
+                        ),
+                        child: Container(
+                          padding: const EdgeInsets.all(AppSpacing.m),
+                          decoration: const BoxDecoration(
+                            color: AppColors.surface,
+                            borderRadius: AppRadii.mdAll,
+                            boxShadow: AppShadows.subtle,
+                          ),
+                          child: TagList(
+                            tags: _tags,
+                            onAdd: _addTag,
+                            onRemove: _removeTag,
                           ),
                         ),
                       ),
-                      FormRow(
-                        label: const _RowLabel(AppStrings.category),
-                        trailing: _ValueButton(
-                          text: AppStrings.categorySingular[_category] ?? '',
-                          icon: AppAssets.iconChevronUpDown,
-                          onTap: _pickCategory,
+                      const SizedBox(height: AppSpacing.l + AppSpacing.sm),
+                      if (save.error != null) ...[
+                        ErrorBanner(message: save.error!),
+                        if (save.retryable)
+                          Padding(
+                            padding: const EdgeInsets.only(top: AppSpacing.s),
+                            child: Align(
+                              alignment: Alignment.centerRight,
+                              child: AppTextLink(
+                                label: AppStrings.retry,
+                                onTap: _save,
+                              ),
+                            ),
+                          ),
+                        const SizedBox(height: AppSpacing.m),
+                      ],
+                      PrimaryButton(
+                        label: _isEditing
+                            ? AppStrings.saveChanges
+                            : AppStrings.savePlaceRecord,
+                        height: 48,
+                        isLoading: save.busy,
+                        onPressed: _save,
+                      ),
+                      if (save.busy && save.total > 0)
+                        Padding(
+                          padding: const EdgeInsets.only(top: AppSpacing.sm),
+                          child: Text(
+                            AppStrings.uploadingPhoto(
+                              (save.uploaded + 1).clamp(1, save.total),
+                              save.total,
+                            ),
+                            textAlign: TextAlign.center,
+                            style: AppTextStyles.footnote.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
                         ),
-                      ),
-                      FormRow(
-                        label: const _RowLabel(AppStrings.location),
-                        trailing: _ValueButton(
-                          text: _location.isEmpty
-                              ? AppStrings.locationHint
-                              : _location,
-                          isPlaceholder: _location.isEmpty,
-                          icon: AppAssets.iconMapPinned,
-                          onTap: _pickLocation,
-                        ),
-                      ),
-                      FormRow(
-                        label: const _RowLabel(AppStrings.dateOfVisit),
-                        trailing: _DatePill(date: _visitDate, onTap: _pickDate),
-                      ),
                     ],
                   ),
-                ),
-                _FieldError(
-                  validator: (_) => Validators.placeName(_nameController.text),
-                ),
-                _FieldError(validator: (_) => Validators.location(_location)),
-                const SizedBox(height: AppSpacing.l),
-                FormSection(
-                  title: AppStrings.experienceRatings,
-                  trailing: Text(
-                    _averageRating.toStringAsFixed(1) + AppStrings.avgSuffix,
-                    style: AppTextStyles.captionMedium.copyWith(
-                      color: AppColors.cafeAccent,
-                    ),
-                  ),
-                  child: FormGroup(
-                    rows: _ratings.entries
-                        .map(
-                          (MapEntry<String, int> e) => FormRow(
-                            fixedTrailing: true,
-                            label: Row(
-                              spacing: AppSpacing.sm,
-                              children: [
-                                AppSvgIcon(ratingIcons[e.key]!),
-                                Flexible(child: _RowLabel(e.key)),
-                              ],
-                            ),
-                            trailing: StarRatingInput(
-                              value: e.value,
-                              onChanged: (int v) =>
-                                  setState(() => _ratings[e.key] = v),
-                            ),
-                          ),
-                        )
-                        .toList(),
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.l),
-                FormSection(
-                  title: AppStrings.personalNotes,
-                  trailing: const _SectionNote(AppStrings.privateToYou),
-                  child: _NotesCard(
-                    controller: _notesController,
-                    onChanged: (_) => setState(() {}),
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.l),
-                FormSection(
-                  title: AppStrings.tags,
-                  trailing: _SectionNote(
-                    '${_tags.length}${AppStrings.tagsSuffix}',
-                  ),
-                  child: Container(
-                    padding: const EdgeInsets.all(AppSpacing.m),
-                    decoration: const BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: AppRadii.mdAll,
-                      boxShadow: AppShadows.subtle,
-                    ),
-                    child: TagList(
-                      tags: _tags,
-                      onAdd: _addTag,
-                      onRemove: _removeTag,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.l + AppSpacing.sm),
-                PrimaryButton(
-                  label: _isEditing
-                      ? AppStrings.saveChanges
-                      : AppStrings.savePlaceRecord,
-                  height: 48,
-                  onPressed: _save,
-                ),
-              ],
+                );
+              },
             ),
-          );
-        },
+          ),
+        ),
       ),
     );
   }
+}
+
+/// The state of the Save area: idle, saving (with upload progress) or failed.
+class _SaveView {
+  const _SaveView.idle()
+    : busy = false,
+      uploaded = 0,
+      total = 0,
+      error = null,
+      retryable = false;
+  const _SaveView.busy(this.uploaded, this.total)
+    : busy = true,
+      error = null,
+      retryable = false;
+  const _SaveView.error(this.error, this.retryable)
+    : busy = false,
+      uploaded = 0,
+      total = 0;
+
+  final bool busy;
+  final int uploaded;
+  final int total;
+  final String? error;
+  final bool retryable;
 }
 
 /// Red message under the venue group; empty (zero height) while valid.

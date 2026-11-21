@@ -43,12 +43,9 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  Future<void> _addPlace() async {
-    final PlacesBloc bloc = context.read<PlacesBloc>();
-    final Object? result = await Navigator.of(context)
-        .pushNamed(AppRoutes.addPlace);
-    if (result is Place) bloc.add(PlaceCreated(result));
-  }
+  /// The form saves through `CreatePlaceBloc`; the new place then arrives
+  /// in the list from `PlacesBloc`'s live stream, so nothing is returned.
+  void _addPlace() => Navigator.of(context).pushNamed(AppRoutes.addPlace);
 
   void _openPlace(Place place) {
     context.read<PlacesBloc>().add(PlaceOpened(place.id));

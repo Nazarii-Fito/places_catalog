@@ -160,6 +160,8 @@ abstract final class AppStrings {
   static const String removePhoto = 'Remove photo';
   static const String photoSourceTitle = 'Add Photo';
   static const String takePhoto = 'Take Photo';
+  static String uploadingPhoto(int current, int total) =>
+      'Uploading photo $current of $total…';
   static const String chooseFromLibrary = 'Choose from Library';
   static const String photoErrorTitle = 'Photo Not Added';
   static const String photoErrorPermission =

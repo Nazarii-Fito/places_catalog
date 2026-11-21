@@ -20,6 +20,7 @@ import '../../../data/models/place.dart';
 import '../../../data/models/place_category.dart';
 import '../../../data/models/review.dart';
 import '../bloc/places_bloc.dart';
+import '../bloc/update_place_bloc.dart';
 import '../place_details_args.dart';
 import '../widgets/details_hero.dart';
 import '../widgets/details_sections.dart';
@@ -71,9 +72,17 @@ class _PlaceDetailsView extends StatelessWidget {
     navigator.pop();
   }
 
-  /// Replaces the review with an edited copy.
-  void _updateReview(BuildContext context, Review review) =>
-      _bloc(context).add(PlaceUpdated(place.copyWith(review: review)));
+  /// Saves an edited review through the same bloc as the full form, so the
+  /// catalog has exactly one write path.
+  void _updateReview(BuildContext context, Review review) {
+    context.read<UpdatePlaceBloc>().add(
+      UpdatePlaceSubmitted(
+        original: place,
+        draft: place.copyWith(review: review),
+        origin: UpdateOrigin.inline,
+      ),
+    );
+  }
 
   void _saveNote(BuildContext context, Review review, String text) =>
       _updateReview(
@@ -82,14 +91,9 @@ class _PlaceDetailsView extends StatelessWidget {
       );
 
   Future<void> _addTag(BuildContext context, Review review) async {
-    final PlacesBloc bloc = _bloc(context);
     final String? tag = await showAddTagDialog(context);
-    if (tag == null || review.tags.contains(tag)) return;
-    bloc.add(
-      PlaceUpdated(
-        place.copyWith(review: review.copyWith(tags: [...review.tags, tag])),
-      ),
-    );
+    if (tag == null || review.tags.contains(tag) || !context.mounted) return;
+    _updateReview(context, review.copyWith(tags: [...review.tags, tag]));
   }
 
   void _removeTag(BuildContext context, Review review, String tag) =>
@@ -100,13 +104,9 @@ class _PlaceDetailsView extends StatelessWidget {
         ),
       );
 
-  /// Opens the shared form in edit mode and stores the result it returns.
-  Future<void> _editPlace(BuildContext context) async {
-    final PlacesBloc bloc = _bloc(context);
-    final Object? result = await Navigator.of(context)
-        .pushNamed(AppRoutes.editPlace, arguments: place);
-    if (result is Place) bloc.add(PlaceUpdated(result));
-  }
+  /// Opens the shared form in edit mode; it saves through `UpdatePlaceBloc`.
+  void _editPlace(BuildContext context) =>
+      Navigator.of(context).pushNamed(AppRoutes.editPlace, arguments: place);
 
   // Opening Apple Maps needs a platform plugin (url_launcher), which is out
   // of Lab 3 scope; the link is shown as designed but inert.
@@ -115,81 +115,95 @@ class _PlaceDetailsView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Review? review = place.review;
-    return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: AppNavHeader(
-        leading: const NavBackButton(),
-        title: AppStrings.placeDetails,
-        trailing: Semantics(
-          button: true,
-          label: AppStrings.editPlaceLabel,
-          child: PressableOpacity(
-            onTap: () => _editPlace(context),
-            child: const SizedBox.square(
-              dimension: AppSpacing.minTapTarget,
-              child: Center(
-                child: AppSvgIcon(
-                  AppAssets.iconPencil,
-                  width: 16,
-                  height: 16,
-                  color: AppColors.primary,
+    // A failed notes/tags save is reported here (the form reports its own).
+    return BlocListener<UpdatePlaceBloc, UpdatePlaceState>(
+      listenWhen: (before, now) =>
+          now is PlaceUpdateErrorState && now.origin == UpdateOrigin.inline,
+      listener: (BuildContext context, UpdatePlaceState state) {
+        AppConfirmDialog.show(
+          context,
+          title: AppStrings.placesSaveErrorTitle,
+          message: (state as PlaceUpdateErrorState).message,
+          confirmLabel: AppStrings.ok,
+          cancelLabel: null,
+        );
+      },
+      child: Scaffold(
+        extendBodyBehindAppBar: true,
+        appBar: AppNavHeader(
+          leading: const NavBackButton(),
+          title: AppStrings.placeDetails,
+          trailing: Semantics(
+            button: true,
+            label: AppStrings.editPlaceLabel,
+            child: PressableOpacity(
+              onTap: () => _editPlace(context),
+              child: const SizedBox.square(
+                dimension: AppSpacing.minTapTarget,
+                child: Center(
+                  child: AppSvgIcon(
+                    AppAssets.iconPencil,
+                    width: 16,
+                    height: 16,
+                    color: AppColors.primary,
+                  ),
                 ),
               ),
             ),
           ),
         ),
-      ),
-      body: Builder(
-        builder: (BuildContext context) {
-          final EdgeInsets insets = MediaQuery.paddingOf(context);
-          return ListView(
-            padding: EdgeInsets.only(top: insets.top),
-            children: [
-              DetailsHero(
-                image: place.heroImage,
-                photosCount: place.photosCount,
-                isFavorite: place.isFavorite,
-                onToggleFavorite: () =>
-                    _bloc(context).add(PlaceFavoriteToggled(place.id)),
-              ),
-              // The sheet overlaps the photo by 24 pt, like in Figma.
-              Transform.translate(
-                offset: const Offset(0, -24),
-                child: _DetailsSheet(
-                  bottomInset: insets.bottom,
-                  children: [
-                    _TitleBlock(place: place),
-                    if (review != null) ...[
-                      const SizedBox(height: AppSpacing.sm),
-                      RatingSummaryCard(review: review),
-                      const SizedBox(height: AppSpacing.xl),
-                      NotesSection(
-                        note: review.textNote,
-                        updatedAt: review.updatedAt,
-                        onSave: (String text) =>
-                            _saveNote(context, review, text),
-                      ),
-                      const SizedBox(height: AppSpacing.l),
-                      TagsSection(
-                        tags: review.tags,
-                        onAddTag: () => _addTag(context, review),
-                        onRemoveTag: (String tag) =>
-                            _removeTag(context, review, tag),
-                      ),
-                    ],
-                    const SizedBox(height: 28),
-                    LocationSection(
-                      label: _shortAddress(place.address),
-                      onOpenMaps: _openMaps,
-                    ),
-                    const SizedBox(height: 28),
-                    _DeleteButton(onPressed: () => _confirmDelete(context)),
-                  ],
+        body: Builder(
+          builder: (BuildContext context) {
+            final EdgeInsets insets = MediaQuery.paddingOf(context);
+            return ListView(
+              padding: EdgeInsets.only(top: insets.top),
+              children: [
+                DetailsHero(
+                  image: place.heroImage,
+                  photosCount: place.photosCount,
+                  isFavorite: place.isFavorite,
+                  onToggleFavorite: () =>
+                      _bloc(context).add(PlaceFavoriteToggled(place.id)),
                 ),
-              ),
-            ],
-          );
-        },
+                // The sheet overlaps the photo by 24 pt, like in Figma.
+                Transform.translate(
+                  offset: const Offset(0, -24),
+                  child: _DetailsSheet(
+                    bottomInset: insets.bottom,
+                    children: [
+                      _TitleBlock(place: place),
+                      if (review != null) ...[
+                        const SizedBox(height: AppSpacing.sm),
+                        RatingSummaryCard(review: review),
+                        const SizedBox(height: AppSpacing.xl),
+                        NotesSection(
+                          note: review.textNote,
+                          updatedAt: review.updatedAt,
+                          onSave: (String text) =>
+                              _saveNote(context, review, text),
+                        ),
+                        const SizedBox(height: AppSpacing.l),
+                        TagsSection(
+                          tags: review.tags,
+                          onAddTag: () => _addTag(context, review),
+                          onRemoveTag: (String tag) =>
+                              _removeTag(context, review, tag),
+                        ),
+                      ],
+                      const SizedBox(height: 28),
+                      LocationSection(
+                        label: _shortAddress(place.address),
+                        onOpenMaps: _openMaps,
+                      ),
+                      const SizedBox(height: 28),
+                      _DeleteButton(onPressed: () => _confirmDelete(context)),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }

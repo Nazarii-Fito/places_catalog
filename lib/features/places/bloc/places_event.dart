@@ -15,26 +15,6 @@ final class PlacesLoadRequested extends PlacesEvent {
   const PlacesLoadRequested();
 }
 
-/// A new place from the form.
-final class PlaceCreated extends PlacesEvent {
-  const PlaceCreated(this.place);
-
-  final Place place;
-
-  @override
-  List<Object?> get props => [place];
-}
-
-/// The edited copy of an existing place (form, notes, tags).
-final class PlaceUpdated extends PlacesEvent {
-  const PlaceUpdated(this.place);
-
-  final Place place;
-
-  @override
-  List<Object?> get props => [place];
-}
-
 final class PlaceDeleted extends PlacesEvent {
   const PlaceDeleted(this.placeId);
 
