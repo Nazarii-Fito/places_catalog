@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show SupabaseClient;
 
 import 'app/app.dart';
+import 'core/widgets/osm_tile_layer.dart';
 import 'app/dev_launch_options.dart';
 import 'data/repositories/auth_repository.dart';
 import 'features/session/bloc/auth_bloc.dart';
@@ -20,7 +21,9 @@ import 'data/firestore/firestore_places_document_store.dart';
 import 'data/repositories/firestore_places_repository.dart';
 import 'data/repositories/firestore_user_profile_repository.dart';
 import 'data/repositories/fake_media_repository.dart';
+import 'data/repositories/geocoding_repository.dart';
 import 'data/repositories/in_memory_places_repository.dart';
+import 'data/repositories/nominatim_geocoding_repository.dart';
 import 'data/repositories/media_repository.dart';
 import 'data/repositories/supabase_media_repository.dart';
 import 'data/repositories/user_profile_repository.dart';
@@ -31,6 +34,7 @@ import 'data/repositories/settings_repository.dart';
 import 'data/repositories/shared_prefs_settings_repository.dart';
 import 'data/services/analytics_service.dart';
 import 'data/services/crash_reporter.dart';
+import 'data/services/map_launcher.dart';
 import 'data/services/photo_picker_service.dart';
 import 'data/services/supabase_config.dart';
 import 'firebase_options.dart';
@@ -93,6 +97,17 @@ Future<void> main() async {
           bucket: SupabaseConfig.bucket,
         )
       : const NotConfiguredMediaRepository();
+  // Map tiles come from the network only in a normal run (never in
+  // screenshot mode or tests).
+  OsmTileLayer.useNetworkTiles = !fake;
+  final GeocodingRepository geocoding = fake
+      ? FakeGeocodingRepository()
+      : NominatimGeocodingRepository(
+          languageCode: PlatformDispatcher.instance.locale.languageCode,
+        );
+  final MapLauncher mapLauncher = fake
+      ? FakeMapLauncher()
+      : const UrlLauncherMapLauncher();
   final UserProfileRepository profiles = fake || DevLaunchOptions.useLocalPlaces
       ? const NoopUserProfileRepository()
       : FirestoreUserProfileRepository(
@@ -113,6 +128,8 @@ Future<void> main() async {
         RepositoryProvider<SettingsRepository>.value(value: settings),
         RepositoryProvider<UserProfileRepository>.value(value: profiles),
         RepositoryProvider<MediaRepository>.value(value: media),
+        RepositoryProvider<GeocodingRepository>.value(value: geocoding),
+        RepositoryProvider<MapLauncher>.value(value: mapLauncher),
         RepositoryProvider<PhotoPickerService>.value(
           value: ImagePickerPhotoService(),
         ),

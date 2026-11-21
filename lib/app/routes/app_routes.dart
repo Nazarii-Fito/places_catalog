@@ -7,6 +7,7 @@ import '../../features/places/screens/place_form_screen.dart';
 import '../../features/places/screens/location_picker_screen.dart';
 import '../../features/places/screens/place_details_screen.dart';
 import '../../data/mock/mock_places.dart';
+import '../../data/models/geocoding_result.dart';
 import '../../data/models/place.dart';
 import '../../features/profile/screens/change_password_screen.dart';
 import '../../features/profile/screens/edit_profile_screen.dart';
@@ -50,7 +51,10 @@ abstract final class AppRoutes {
       AppRoutes.editPlace => (_) => PlaceFormScreen(
         initial: settings.arguments as Place?,
       ),
-      AppRoutes.locationPicker => (_) => const LocationPickerScreen(),
+      // The place's current location (if any) travels in the arguments.
+      AppRoutes.locationPicker => (_) => LocationPickerScreen(
+        initial: settings.arguments as LocationPickerArgs?,
+      ),
       AppRoutes.editProfile => (_) => const EditProfileScreen(),
       AppRoutes.exportArchive => (_) => ExportArchiveScreen(
         places: settings.arguments as List<Place>? ?? mockPlaces,

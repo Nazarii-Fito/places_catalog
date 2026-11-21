@@ -8,8 +8,10 @@ import 'package:places_catalog/app/routes/app_routes.dart';
 import 'package:places_catalog/core/theme/app_theme.dart';
 import 'package:places_catalog/data/repositories/auth_repository.dart';
 import 'package:places_catalog/data/repositories/fake_media_repository.dart';
+import 'package:places_catalog/data/repositories/geocoding_repository.dart';
 import 'package:places_catalog/data/repositories/in_memory_places_repository.dart';
 import 'package:places_catalog/data/repositories/media_repository.dart';
+import 'package:places_catalog/data/services/map_launcher.dart';
 import 'package:places_catalog/data/services/photo_picker_service.dart';
 import 'package:places_catalog/data/repositories/in_memory_settings_repository.dart';
 import 'package:places_catalog/data/repositories/places_repository.dart';
@@ -60,6 +62,8 @@ Widget withScope(
   SettingsRepository? settings,
   MediaRepository? media,
   PhotoPickerService? picker,
+  GeocodingRepository? geocoding,
+  MapLauncher? mapLauncher,
 }) {
   return MultiRepositoryProvider(
     providers: [
@@ -74,6 +78,12 @@ Widget withScope(
       ),
       RepositoryProvider<MediaRepository>.value(
         value: media ?? FakeMediaRepository(),
+      ),
+      RepositoryProvider<GeocodingRepository>.value(
+        value: geocoding ?? FakeGeocodingRepository(),
+      ),
+      RepositoryProvider<MapLauncher>.value(
+        value: mapLauncher ?? FakeMapLauncher(),
       ),
       RepositoryProvider<PhotoPickerService>.value(
         value: picker ?? FakePhotoPickerService(),
@@ -104,6 +114,8 @@ Widget testApp(
   SettingsRepository? settings,
   MediaRepository? media,
   PhotoPickerService? picker,
+  GeocodingRepository? geocoding,
+  MapLauncher? mapLauncher,
 }) {
   return withScope(
     MaterialApp(
@@ -118,6 +130,8 @@ Widget testApp(
     settings: settings,
     media: media,
     picker: picker,
+    geocoding: geocoding,
+    mapLauncher: mapLauncher,
   );
 }
 

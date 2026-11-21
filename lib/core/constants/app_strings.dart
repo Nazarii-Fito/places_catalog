@@ -345,6 +345,14 @@ abstract final class AppStrings {
       'No connection. Check your internet and try again.';
   static const String errorStorageNotSetUp = 'Cloud storage is not configured.';
   static const String errorInvalidInput = 'This data is not valid.';
+  static const String errorSearchTimeout =
+      'The address search took too long. Please try again.';
+  static const String errorSearchServer =
+      'The address search is unavailable right now. Please try again later.';
+  static const String searchNoResults = 'No places found for this search.';
+  static const String moveMapHint = 'Move the map to choose a place';
+  static const String locationNotSet = 'Location is not set';
+  static const String couldNotOpenMaps = 'Could not open the Maps app.';
   static const String errorUnknown = 'Something went wrong. Please try again.';
 
   // Validation (Form validators)

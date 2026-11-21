@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../../core/constants/app_assets.dart';
 import '../../../core/constants/app_strings.dart';
+import '../../../core/constants/map_defaults.dart';
+import '../../../core/widgets/osm_tile_layer.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radii.dart';
 import '../../../core/theme/app_shadows.dart';
@@ -171,17 +175,30 @@ class TagsSection extends StatelessWidget {
   }
 }
 
-/// "Location & Coordinates": static map picture with a centred pin and
-/// the street label (no map SDK in Lab 3).
+/// "Location & Coordinates": a small real map (OpenStreetMap) with a pin on
+/// the place and the street label.
+///
+/// The map cannot be panned or zoomed (it is a preview); tapping it, or
+/// "Open in Maps", hands the point to the phone's Maps app. A place saved
+/// without coordinates (an old record) shows a calm "Location is not set"
+/// tile instead — nothing breaks.
 class LocationSection extends StatelessWidget {
   const LocationSection({
     super.key,
     required this.label,
     required this.onOpenMaps,
+    this.latitude,
+    this.longitude,
   });
 
   final String label;
+  final double? latitude;
+  final double? longitude;
+
+  /// Called by the link and by a tap on the map; only when [hasPoint].
   final VoidCallback onOpenMaps;
+
+  bool get hasPoint => latitude != null && longitude != null;
 
   @override
   Widget build(BuildContext context) {
@@ -197,15 +214,16 @@ class LocationSection extends StatelessWidget {
                 style: AppTextStyles.footnoteSemibold,
               ),
             ),
-            PressableOpacity(
-              onTap: onOpenMaps,
-              child: Text(
-                AppStrings.openInMaps,
-                style: AppTextStyles.captionMedium.copyWith(
-                  color: AppColors.primary,
+            if (hasPoint)
+              PressableOpacity(
+                onTap: onOpenMaps,
+                child: Text(
+                  AppStrings.openInMaps,
+                  style: AppTextStyles.captionMedium.copyWith(
+                    color: AppColors.primary,
+                  ),
                 ),
               ),
-            ),
           ],
         ),
         Container(
@@ -215,31 +233,92 @@ class LocationSection extends StatelessWidget {
             borderRadius: AppRadii.mdAll,
             boxShadow: AppShadows.group,
           ),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              Image.asset(AppAssets.mapSoho, fit: BoxFit.cover),
-              const ColoredBox(color: AppColors.scrim10),
-              const Align(alignment: Alignment(0, -0.125), child: _MapMarker()),
-              Positioned(
-                left: AppSpacing.sm,
-                bottom: AppSpacing.sm,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.sm,
-                    vertical: AppSpacing.xxs,
-                  ),
-                  decoration: const BoxDecoration(
-                    color: AppColors.glass90,
-                    borderRadius: BorderRadius.all(Radius.circular(4)),
-                  ),
-                  child: Text(label, style: AppTextStyles.tabLabel),
-                ),
-              ),
-            ],
-          ),
+          child: hasPoint ? _buildMap() : const _NoLocation(),
         ),
       ],
+    );
+  }
+
+  Widget _buildMap() {
+    final LatLng point = LatLng(latitude!, longitude!);
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onOpenMaps,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // A still preview: `InteractiveFlag.none` plus `IgnorePointer`, so
+          // the map's own gesture handling cannot swallow the tap that opens
+          // the Maps app.
+          IgnorePointer(
+            child: FlutterMap(
+              options: MapOptions(
+                initialCenter: point,
+                initialZoom: MapDefaults.previewZoom,
+                backgroundColor: OsmTileLayer.background,
+                interactionOptions: const InteractionOptions(
+                  flags: InteractiveFlag.none,
+                ),
+              ),
+              children: [
+                const OsmTileLayer(),
+                MarkerLayer(
+                  markers: [
+                    Marker(
+                      point: point,
+                      width: 32,
+                      height: 32,
+                      child: const _MapMarker(),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Positioned(
+            left: AppSpacing.sm,
+            bottom: AppSpacing.sm,
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm,
+                vertical: AppSpacing.xxs,
+              ),
+              decoration: const BoxDecoration(
+                color: AppColors.glass90,
+                borderRadius: BorderRadius.all(Radius.circular(4)),
+              ),
+              child: Text(label, style: AppTextStyles.tabLabel),
+            ),
+          ),
+          const Positioned(
+            right: AppSpacing.xs,
+            bottom: AppSpacing.xxs,
+            child: OsmAttribution(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Shown when the place has no coordinates.
+class _NoLocation extends StatelessWidget {
+  const _NoLocation();
+
+  @override
+  Widget build(BuildContext context) {
+    return const ColoredBox(
+      color: AppColors.surfaceContainerLow,
+      child: Center(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          spacing: AppSpacing.sm,
+          children: [
+            AppSvgIcon(AppAssets.iconPin),
+            Text(AppStrings.locationNotSet, style: AppTextStyles.footnote),
+          ],
+        ),
+      ),
     );
   }
 }

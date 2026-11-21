@@ -19,6 +19,7 @@ import '../../../core/widgets/pressable_opacity.dart';
 import '../../../data/models/place.dart';
 import '../../../data/models/place_category.dart';
 import '../../../data/models/review.dart';
+import '../../../data/services/map_launcher.dart';
 import '../bloc/places_bloc.dart';
 import '../bloc/update_place_bloc.dart';
 import '../place_details_args.dart';
@@ -108,9 +109,25 @@ class _PlaceDetailsView extends StatelessWidget {
   void _editPlace(BuildContext context) =>
       Navigator.of(context).pushNamed(AppRoutes.editPlace, arguments: place);
 
-  // Opening Apple Maps needs a platform plugin (url_launcher), which is out
-  // of Lab 3 scope; the link is shown as designed but inert.
-  void _openMaps() {}
+  /// Opens the place in the phone's Maps app; says so if that fails.
+  Future<void> _openMaps(BuildContext context) async {
+    final double? lat = place.latitude;
+    final double? lon = place.longitude;
+    if (lat == null || lon == null) return;
+    final bool opened = await context.read<MapLauncher>().openLocation(
+      latitude: lat,
+      longitude: lon,
+      label: place.name,
+    );
+    if (opened || !context.mounted) return;
+    await AppConfirmDialog.show(
+      context,
+      title: AppStrings.openInMaps,
+      message: AppStrings.couldNotOpenMaps,
+      confirmLabel: AppStrings.ok,
+      cancelLabel: null,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -193,7 +210,9 @@ class _PlaceDetailsView extends StatelessWidget {
                       const SizedBox(height: 28),
                       LocationSection(
                         label: _shortAddress(place.address),
-                        onOpenMaps: _openMaps,
+                        latitude: place.latitude,
+                        longitude: place.longitude,
+                        onOpenMaps: () => _openMaps(context),
                       ),
                       const SizedBox(height: 28),
                       _DeleteButton(onPressed: () => _confirmDelete(context)),

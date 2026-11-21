@@ -22,6 +22,7 @@ import '../../../core/validation/validators.dart';
 import '../../../core/widgets/app_confirm_dialog.dart';
 import '../../../core/widgets/app_text_link.dart';
 import '../../../core/widgets/error_banner.dart';
+import '../../../data/models/geocoding_result.dart';
 import '../../../data/models/place.dart';
 import '../../../data/services/photo_picker_service.dart';
 import '../../../data/models/place_category.dart';
@@ -74,6 +75,8 @@ class _PlaceFormScreenState extends State<PlaceFormScreen> {
   late List<PlacePhoto> _photos;
   late PlaceCategory _category;
   late String _location;
+  double? _latitude;
+  double? _longitude;
   late DateTime _visitDate;
   late final Map<String, int> _ratings;
   late List<String> _tags;
@@ -104,6 +107,8 @@ class _PlaceFormScreenState extends State<PlaceFormScreen> {
               : <PlacePhoto>[]);
     _category = place?.category ?? PlaceCategory.cafe;
     _location = place?.address ?? (_demo ? AppStrings.defaultLocation : '');
+    _latitude = place?.latitude;
+    _longitude = place?.longitude;
     _visitDate =
         place?.visitDate ?? (_demo ? DateTime(2026, 9, 24) : DateTime.now());
     // A review needs a rating of at least 1, so every criterion starts at a
@@ -209,8 +214,8 @@ class _PlaceFormScreenState extends State<PlaceFormScreen> {
       createdAt: old?.createdAt,
       review: review,
       isFavorite: old?.isFavorite ?? false,
-      latitude: old?.latitude,
-      longitude: old?.longitude,
+      latitude: _latitude,
+      longitude: _longitude,
       photos: photos,
     );
   }
@@ -276,10 +281,22 @@ class _PlaceFormScreenState extends State<PlaceFormScreen> {
   }
 
   Future<void> _pickLocation() async {
-    final Object? result = await Navigator.of(context)
-        .pushNamed(AppRoutes.locationPicker);
-    if (result is String) {
-      setState(() => _location = result);
+    final Object? result = await Navigator.of(context).pushNamed(
+      AppRoutes.locationPicker,
+      arguments: _location.isEmpty && _latitude == null
+          ? null
+          : LocationPickerArgs(
+              address: _location,
+              latitude: _latitude,
+              longitude: _longitude,
+            ),
+    );
+    if (result is PickedLocation) {
+      setState(() {
+        _location = result.address;
+        _latitude = result.latitude;
+        _longitude = result.longitude;
+      });
       _revalidate();
     }
   }
