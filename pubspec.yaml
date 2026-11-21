@@ -33,6 +33,7 @@ dependencies:
   dio: ^5.11.1
   url_launcher: ^6.3.3
   uuid: ^4.6.0
+  geolocator: ^14.1.2
 
 dev_dependencies:
   flutter_test:

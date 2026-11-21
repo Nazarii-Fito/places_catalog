@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/widgets.dart';
 
 import '../theme/app_colors.dart';
@@ -14,9 +16,14 @@ class UserAvatar extends StatelessWidget {
     required this.imageUrl,
     required this.initials,
     this.size = AppSizes.avatar,
+    this.localPath,
   });
 
   final String? imageUrl;
+
+  /// A picture just chosen on this device, not uploaded yet. Wins over
+  /// [imageUrl] so the user sees their choice at once.
+  final String? localPath;
   final String initials;
   final double size;
 
@@ -38,7 +45,15 @@ class UserAvatar extends StatelessWidget {
         shape: BoxShape.circle,
         boxShadow: AppShadows.elevated,
       ),
-      child: url == null || url.isEmpty
+      child: localPath != null
+          ? Image.file(
+              File(localPath!),
+              width: size,
+              height: size,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => placeholder,
+            )
+          : url == null || url.isEmpty
           ? placeholder
           : Image.network(
               url,

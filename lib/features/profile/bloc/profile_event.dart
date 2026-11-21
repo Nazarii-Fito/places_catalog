@@ -17,17 +17,22 @@ final class ProfileUpdated extends ProfileEvent {
   const ProfileUpdated({
     this.displayName,
     this.photoUrl,
+    this.newAvatar,
     this.photoSource = 'unchanged',
   });
 
   final String? displayName;
   final String? photoUrl;
 
-  /// For Analytics only: `preset`, `custom` or `unchanged`.
+  /// A picture chosen on this device (a local file): uploaded to cloud
+  /// storage, and its URL replaces [photoUrl].
+  final PlacePhoto? newAvatar;
+
+  /// For Analytics only: `preset`, `custom`, `upload` or `unchanged`.
   final String photoSource;
 
   @override
-  List<Object?> get props => [displayName, photoUrl, photoSource];
+  List<Object?> get props => [displayName, photoUrl, newAvatar, photoSource];
 }
 
 final class ProfileGoogleLinkRequested extends ProfileEvent {

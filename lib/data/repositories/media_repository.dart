@@ -20,6 +20,18 @@ abstract interface class MediaRepository {
     required PlacePhoto local,
   });
 
+  /// Uploads the user's profile picture to `users/<uid>/avatar/<uuid>.<ext>`
+  /// and returns it as a [PhotoKind.remote] photo. Throws [PlacesFailure].
+  Future<PlacePhoto> uploadAvatar({
+    required String uid,
+    required PlacePhoto local,
+  });
+
+  /// The object path of [url] if it points into *our* bucket, otherwise
+  /// `null` (a preset avatar or a link typed by the user is not ours to
+  /// delete).
+  String? storagePathOf(String url);
+
   /// Deletes one object. Best-effort callers may ignore the failure.
   Future<void> deletePhoto(String storagePath);
 
@@ -41,6 +53,15 @@ class NotConfiguredMediaRepository implements MediaRepository {
     required String placeId,
     required PlacePhoto local,
   }) async => throw const PlacesFailure(PlacesFailureType.storageNotConfigured);
+
+  @override
+  Future<PlacePhoto> uploadAvatar({
+    required String uid,
+    required PlacePhoto local,
+  }) async => throw const PlacesFailure(PlacesFailureType.storageNotConfigured);
+
+  @override
+  String? storagePathOf(String url) => null;
 
   @override
   Future<void> deletePhoto(String storagePath) async {}

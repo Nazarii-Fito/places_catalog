@@ -1,10 +1,14 @@
-/// A place found by address search or by looking up a point on the map.
+import 'place_category.dart';
+
+/// A place found by address search, by looking up a point on the map, or as
+/// a venue (cafe, restaurant…) near it.
 class GeocodingResult {
   const GeocodingResult({
     required this.displayName,
     required this.title,
     required this.latitude,
     required this.longitude,
+    this.category,
   });
 
   /// Reads one object of Nominatim's `jsonv2` format (`/search` returns a
@@ -33,6 +37,12 @@ class GeocodingResult {
   final String title;
   final double latitude;
   final double longitude;
+
+  /// Set for venues (a cafe, a museum…): what kind of place it is, so the form
+  /// can fill in the category. `null` for plain addresses.
+  final PlaceCategory? category;
+
+  bool get isVenue => category != null;
 }
 
 /// What the location picker hands back to the place form: a text address
@@ -42,11 +52,18 @@ class PickedLocation {
     required this.address,
     required this.latitude,
     required this.longitude,
+    this.name,
+    this.category,
   });
 
   final String address;
   final double latitude;
   final double longitude;
+
+  /// Only when the user chose a venue on the map: its name and kind. The form
+  /// uses them to pre-fill the place name and category.
+  final String? name;
+  final PlaceCategory? category;
 }
 
 /// What the form tells the location picker when it opens: the place's current

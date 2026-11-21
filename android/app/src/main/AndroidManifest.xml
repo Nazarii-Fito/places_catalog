@@ -2,6 +2,9 @@
     <!-- Firestore, cloud storage, map tiles and address search need the network
          in release builds too (Flutter adds it only to debug/profile). -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- "My location" button in the location picker. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <application
         android:label="places_catalog"
         android:name="${applicationName}"

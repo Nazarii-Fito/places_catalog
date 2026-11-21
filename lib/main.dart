@@ -24,6 +24,8 @@ import 'data/repositories/fake_media_repository.dart';
 import 'data/repositories/geocoding_repository.dart';
 import 'data/repositories/in_memory_places_repository.dart';
 import 'data/repositories/nominatim_geocoding_repository.dart';
+import 'data/repositories/overpass_venues_repository.dart';
+import 'data/repositories/venues_repository.dart';
 import 'data/repositories/media_repository.dart';
 import 'data/repositories/supabase_media_repository.dart';
 import 'data/repositories/user_profile_repository.dart';
@@ -34,6 +36,7 @@ import 'data/repositories/settings_repository.dart';
 import 'data/repositories/shared_prefs_settings_repository.dart';
 import 'data/services/analytics_service.dart';
 import 'data/services/crash_reporter.dart';
+import 'data/services/location_service.dart';
 import 'data/services/map_launcher.dart';
 import 'data/services/photo_picker_service.dart';
 import 'data/services/supabase_config.dart';
@@ -105,6 +108,12 @@ Future<void> main() async {
       : NominatimGeocodingRepository(
           languageCode: PlatformDispatcher.instance.locale.languageCode,
         );
+  final VenuesRepository venues = fake
+      ? FakeVenuesRepository()
+      : OverpassVenuesRepository();
+  final LocationService location = fake
+      ? FakeLocationService()
+      : const GeolocatorLocationService();
   final MapLauncher mapLauncher = fake
       ? FakeMapLauncher()
       : const UrlLauncherMapLauncher();
@@ -129,6 +138,8 @@ Future<void> main() async {
         RepositoryProvider<UserProfileRepository>.value(value: profiles),
         RepositoryProvider<MediaRepository>.value(value: media),
         RepositoryProvider<GeocodingRepository>.value(value: geocoding),
+        RepositoryProvider<VenuesRepository>.value(value: venues),
+        RepositoryProvider<LocationService>.value(value: location),
         RepositoryProvider<MapLauncher>.value(value: mapLauncher),
         RepositoryProvider<PhotoPickerService>.value(
           value: ImagePickerPhotoService(),

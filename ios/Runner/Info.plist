@@ -39,6 +39,8 @@
 	<string>776015351752-li8uanbvqqs5ul16p811ftnsjiudtt82.apps.googleusercontent.com</string>
 	<key>NSCameraUsageDescription</key>
 	<string>PlacesCatalog uses the camera so you can take photos of places you visit.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>PlacesCatalog uses your location only when you tap the location button, to show places near you.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>PlacesCatalog uses your photo library so you can attach photos to places you visit.</string>
 	<key>LSRequiresIPhoneOS</key>

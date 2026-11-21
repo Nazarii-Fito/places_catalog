@@ -9,7 +9,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/errors/auth_failure.dart';
 import '../../../data/models/app_user.dart';
+import '../../../core/errors/places_failure.dart';
+import '../../../data/models/place_photo.dart';
 import '../../../data/repositories/auth_repository.dart';
+import '../../../data/repositories/media_repository.dart';
 import '../../../data/repositories/user_profile_repository.dart';
 import '../../../data/services/analytics_service.dart';
 
@@ -23,9 +26,11 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     required AuthRepository auth,
     required AnalyticsService analytics,
     required UserProfileRepository profiles,
+    required MediaRepository media,
   }) : _auth = auth,
        _analytics = analytics,
        _profiles = profiles,
+       _media = media,
        // The current user is known synchronously, so the first frame is
        // already filled in; the stream then keeps it up to date.
        super(
@@ -47,6 +52,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
   final AuthRepository _auth;
   final AnalyticsService _analytics;
   final UserProfileRepository _profiles;
+  final MediaRepository _media;
 
   Future<void> _onStarted(ProfileStarted event, Emitter<ProfileState> emit) {
     return emit.forEach<AppUser?>(
@@ -66,10 +72,22 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
   ) async {
     if (state.status == ProfileStatus.saving) return;
     emit(state.copyWith(status: ProfileStatus.saving, clearMessage: true));
+
+    final AppUser? before = _auth.currentUser;
+    final String? oldPhotoUrl = before?.photoUrl;
+    PlacePhoto? uploaded;
     try {
+      String? photoUrl = event.photoUrl;
+      final PlacePhoto? picked = event.newAvatar;
+      if (picked != null && before != null) {
+        // The picture goes to cloud storage first; its public URL becomes
+        // the account's `photoURL`.
+        uploaded = await _media.uploadAvatar(uid: before.uid, local: picked);
+        photoUrl = uploaded.location;
+      }
       await _auth.updateProfile(
         displayName: event.displayName,
-        photoUrl: event.photoUrl,
+        photoUrl: photoUrl,
       );
       await _analytics.logProfileUpdated(photoSource: event.photoSource);
       final AppUser? updated = _auth.currentUser;
@@ -77,13 +95,39 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
       if (updated != null) unawaited(_profiles.syncProfile(updated));
       // saving → idle is the "saved" signal the Edit Profile screen waits for.
       emit(state.copyWith(status: ProfileStatus.idle));
+      // The previous picture, if it was one of ours, is no longer used.
+      if (photoUrl != null && photoUrl != oldPhotoUrl) {
+        await _deleteOwnFile(oldPhotoUrl);
+      }
     } on AuthFailure catch (failure) {
+      // The account was not changed: the file just uploaded is orphaned.
+      await _deleteOwnFile(uploaded?.location);
       emit(
         state.copyWith(
           status: ProfileStatus.saveFailure,
           message: failure.message,
         ),
       );
+    } on PlacesFailure catch (failure) {
+      emit(
+        state.copyWith(
+          status: ProfileStatus.saveFailure,
+          message: failure.message,
+        ),
+      );
+    }
+  }
+
+  /// Deletes [url]'s file when it lives in our bucket. Best-effort: an
+  /// orphan file is acceptable, a failed save because of it is not.
+  Future<void> _deleteOwnFile(String? url) async {
+    if (url == null) return;
+    final String? path = _media.storagePathOf(url);
+    if (path == null) return;
+    try {
+      await _media.deletePhoto(path);
+    } catch (_) {
+      // Left behind; nothing to tell the user.
     }
   }
 

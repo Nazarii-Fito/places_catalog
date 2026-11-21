@@ -25,10 +25,12 @@ class SupabaseMediaRepository implements MediaRepository {
     required CrashReporter crashReporter,
     required String bucket,
     Uuid uuid = const Uuid(),
-  }) : _storage = client.storage.from(bucket),
+  }) : _bucket = bucket,
+       _storage = client.storage.from(bucket),
        _crashReporter = crashReporter,
        _uuid = uuid;
 
+  final String _bucket;
   final StorageFileApi _storage;
   final CrashReporter _crashReporter;
   final Uuid _uuid;
@@ -57,11 +59,25 @@ class SupabaseMediaRepository implements MediaRepository {
     required String uid,
     required String placeId,
     required PlacePhoto local,
+  }) => _upload(uid: uid, folder: placeId, local: local);
+
+  /// `users/<uid>/avatar/<uuid>.<ext>`: the profile picture lives next to
+  /// the user's places, under its own folder.
+  @override
+  Future<PlacePhoto> uploadAvatar({
+    required String uid,
+    required PlacePhoto local,
+  }) => _upload(uid: uid, folder: 'avatar', local: local);
+
+  Future<PlacePhoto> _upload({
+    required String uid,
+    required String folder,
+    required PlacePhoto local,
   }) async {
     final String contentType = local.contentType ?? 'image/jpeg';
     final String path = buildPath(
       uid: uid,
-      placeId: placeId,
+      placeId: folder,
       fileId: _uuid.v4(),
       contentType: contentType,
     );
@@ -83,6 +99,13 @@ class SupabaseMediaRepository implements MediaRepository {
     } catch (error, stack) {
       throw _toFailure(error, stack);
     }
+  }
+
+  @override
+  String? storagePathOf(String url) {
+    final String marker = '/object/public/$_bucket/';
+    final int at = url.indexOf(marker);
+    return at == -1 ? null : url.substring(at + marker.length);
   }
 
   @override

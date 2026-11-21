@@ -3,7 +3,10 @@ import 'dart:async';
 import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:places_catalog/core/errors/auth_failure.dart';
+import 'package:places_catalog/data/models/app_user.dart';
+import 'package:places_catalog/data/models/place_photo.dart';
 import 'package:places_catalog/data/repositories/fake_auth_repository.dart';
+import 'package:places_catalog/data/repositories/fake_media_repository.dart';
 import 'package:places_catalog/data/repositories/user_profile_repository.dart';
 import 'package:places_catalog/data/services/analytics_service.dart';
 import 'package:places_catalog/features/auth/bloc/forgot_password_cubit.dart';
@@ -142,11 +145,16 @@ void main() {
 
   group('ProfileBloc', () {
     late FakeAuthRepository auth;
-    setUp(() => auth = FakeAuthRepository.signedIn());
+    late FakeMediaRepository media;
+    setUp(() {
+      auth = FakeAuthRepository.signedIn();
+      media = FakeMediaRepository();
+    });
     ProfileBloc make() => ProfileBloc(
       auth: auth,
       analytics: _analytics,
       profiles: const NoopUserProfileRepository(),
+      media: media,
     );
 
     test('starts with the current user already available', () {
@@ -181,6 +189,126 @@ void main() {
       verify: (ProfileBloc b) {
         expect(b.state.status, ProfileStatus.saveFailure);
         expect(b.state.message, isNotNull);
+      },
+    );
+
+    const PlacePhoto picked = PlacePhoto.local(
+      '/tmp/me.jpg',
+      fileSizeBytes: 100,
+      contentType: 'image/jpeg',
+    );
+
+    blocTest<ProfileBloc, ProfileState>(
+      'a picture from the device is uploaded and becomes the photo URL',
+      build: make,
+      act: (ProfileBloc b) async {
+        b.add(const ProfileStarted());
+        b.add(
+          const ProfileUpdated(
+            displayName: 'Me',
+            newAvatar: picked,
+            photoSource: 'upload',
+          ),
+        );
+      },
+      wait: const Duration(milliseconds: 30),
+      verify: (ProfileBloc b) {
+        expect(media.uploaded.single, startsWith('users/demo-uid/avatar/'));
+        expect(b.state.status, ProfileStatus.idle);
+        expect(b.state.user?.photoUrl, contains('users/demo-uid/avatar/'));
+      },
+    );
+
+    blocTest<ProfileBloc, ProfileState>(
+      'replacing an uploaded picture deletes the old file (ours only)',
+      build: make,
+      setUp: () {
+        auth = FakeAuthRepository(
+          signedInAs: const AppUser(
+            uid: 'demo-uid',
+            email: 'a@b.co',
+            photoUrl: 'https://fake.invalid/place-photos/users/demo-uid/avatar/old.jpg',
+            providerIds: {AppUser.passwordProvider},
+          ),
+        );
+      },
+      act: (ProfileBloc b) =>
+          b.add(const ProfileUpdated(newAvatar: picked, photoSource: 'upload')),
+      verify: (ProfileBloc b) {
+        expect(media.deleted, ['users/demo-uid/avatar/old.jpg']);
+      },
+    );
+
+    blocTest<ProfileBloc, ProfileState>(
+      'switching to a preset avatar deletes an old uploaded one; a preset is never deleted',
+      build: make,
+      setUp: () {
+        auth = FakeAuthRepository(
+          signedInAs: const AppUser(
+            uid: 'demo-uid',
+            email: 'a@b.co',
+            photoUrl: 'https://fake.invalid/place-photos/users/demo-uid/avatar/old.jpg',
+            providerIds: {AppUser.passwordProvider},
+          ),
+        );
+      },
+      act: (ProfileBloc b) async {
+        b.add(
+          const ProfileUpdated(
+            photoUrl: 'https://api.dicebear.com/9.x/notionists/png?seed=a',
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        b.add(
+          const ProfileUpdated(
+            photoUrl: 'https://api.dicebear.com/9.x/notionists/png?seed=b',
+          ),
+        );
+      },
+      wait: const Duration(milliseconds: 40),
+      verify: (_) =>
+          // Only the first switch removed a file of ours.
+          expect(media.deleted, ['users/demo-uid/avatar/old.jpg']),
+    );
+
+    blocTest<ProfileBloc, ProfileState>(
+      'an upload failure is a save failure and the account is untouched',
+      build: make,
+      setUp: () => media.failOnUpload = 1,
+      act: (ProfileBloc b) => b.add(
+        const ProfileUpdated(displayName: 'Changed', newAvatar: picked),
+      ),
+      verify: (ProfileBloc b) {
+        expect(b.state.status, ProfileStatus.saveFailure);
+        expect(b.state.message, isNotNull);
+        expect(auth.calls, isNot(contains('updateProfile')));
+      },
+    );
+
+    blocTest<ProfileBloc, ProfileState>(
+      'if the account update fails, the just-uploaded file is removed',
+      build: make,
+      setUp: () =>
+          auth.nextFailure = const AuthFailure(AuthFailureType.network),
+      act: (ProfileBloc b) => b.add(const ProfileUpdated(newAvatar: picked)),
+      verify: (ProfileBloc b) {
+        expect(b.state.status, ProfileStatus.saveFailure);
+        expect(media.deleted, media.uploaded);
+      },
+    );
+
+    blocTest<ProfileBloc, ProfileState>(
+      'without storage keys, uploading explains and saves nothing',
+      build: () => ProfileBloc(
+        auth: auth,
+        analytics: _analytics,
+        profiles: const NoopUserProfileRepository(),
+        media: FakeMediaRepository(configured: false),
+      ),
+      act: (ProfileBloc b) => b.add(const ProfileUpdated(newAvatar: picked)),
+      verify: (ProfileBloc b) {
+        expect(b.state.status, ProfileStatus.saveFailure);
+        expect(b.state.message, contains('not configured'));
       },
     );
 

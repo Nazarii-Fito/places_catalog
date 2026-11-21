@@ -6,6 +6,8 @@ import 'package:places_catalog/core/widgets/osm_tile_layer.dart';
 import 'package:places_catalog/data/mock/mock_places.dart';
 import 'package:places_catalog/data/models/geocoding_result.dart';
 import 'package:places_catalog/data/models/place.dart';
+import 'package:places_catalog/data/models/place_category.dart';
+import 'package:places_catalog/data/services/location_service.dart';
 import 'package:places_catalog/data/repositories/geocoding_repository.dart';
 import 'package:places_catalog/data/repositories/in_memory_places_repository.dart';
 import 'package:places_catalog/data/services/map_launcher.dart';
@@ -179,6 +181,106 @@ void main() {
       expect(find.text('Home, Street 5'), findsWidgets);
     });
 
+    testWidgets('venues around the view appear as markers; tap chooses one', (
+      tester,
+    ) async {
+      useIPhone17(tester);
+      final List<Object?> results = [];
+      await tester.pumpWidget(
+        testApp(
+          _host((Object? r) {
+            results.add(r);
+            return null;
+          }),
+        ),
+      );
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      // The map settles, then venues are loaded after the debounce.
+      await tester.pump(const Duration(milliseconds: 900));
+      await tester.pumpAndSettle();
+
+      expect(find.bySemanticsLabel('Fake Roasters'), findsOneWidget);
+      expect(find.bySemanticsLabel('Fake Trattoria'), findsOneWidget);
+
+      await tester.tap(find.bySemanticsLabel('Fake Roasters'));
+      await tester.pumpAndSettle();
+      expect(find.text('Fake Roasters'), findsWidgets); // card title
+      await tester.tap(find.text('Confirm Location'));
+      await tester.pumpAndSettle();
+
+      final PickedLocation picked = results.single! as PickedLocation;
+      expect(picked.name, 'Fake Roasters');
+      expect(picked.category, PlaceCategory.cafe);
+      expect(picked.address, contains('Coffee Lane'));
+    });
+
+    testWidgets('"My location" moves the map to the phone and names the spot', (
+      tester,
+    ) async {
+      useIPhone17(tester);
+      final FakeLocationService location = FakeLocationService(
+        latitude: 50.0,
+        longitude: 30.0,
+      );
+      await tester.pumpWidget(testApp(_host((_) => null), location: location));
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.bySemanticsLabel('My location'));
+      await tester.pumpAndSettle();
+      expect(location.calls, 1);
+      expect(find.text('50.0000° N, 30.0000° E'), findsOneWidget);
+      expect(find.textContaining('Test Street'), findsWidgets);
+    });
+
+    testWidgets('a refused location permission is explained, not a crash', (
+      tester,
+    ) async {
+      useIPhone17(tester);
+      final FakeLocationService location = FakeLocationService(
+        failure: const LocationFailure(LocationFailureType.deniedForever),
+      );
+      await tester.pumpWidget(testApp(_host((_) => null), location: location));
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.bySemanticsLabel('My location'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Allow it in Settings'), findsOneWidget);
+      expect(find.text('Confirm Location'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('searching by name lists venues first, with their icons', (
+      tester,
+    ) async {
+      useIPhone17(tester);
+      await tester.pumpWidget(
+        testApp(
+          _host((_) => null),
+          geocoding: FakeGeocodingRepository(
+            results: const [
+              GeocodingResult(
+                displayName: 'Roasters Street, Town',
+                title: 'Roasters Street',
+                latitude: 1,
+                longitude: 2,
+              ),
+            ],
+          ),
+        ),
+      );
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(EditableText), 'roasters');
+      await tester.testTextInput.receiveAction(TextInputAction.search);
+      await tester.pumpAndSettle();
+      // Fake Roasters (venue) and Roasters Street (address) are both listed.
+      expect(find.text('Fake Roasters'), findsOneWidget);
+      expect(find.text('Roasters Street'), findsOneWidget);
+      expect(find.byIcon(Icons.local_cafe), findsWidgets);
+    });
+
     testWidgets('network tiles are off in tests (no HTTP)', (tester) async {
       expect(OsmTileLayer.useNetworkTiles, isFalse);
       expect(OsmTileLayer.packageName, 'ua.lpnu.pz33.placesCatalog');
@@ -290,5 +392,58 @@ void main() {
     expect(saved.latitude, 50.4501);
     expect(saved.longitude, 30.5234);
     expect(saved.address, contains('Fake Cafe'));
+  });
+
+  testWidgets('a venue picked on the map fills the form name and category', (
+    tester,
+  ) async {
+    useIPhone(tester, size: const Size(390, 2400));
+    final InMemoryPlacesRepository repo = InMemoryPlacesRepository(seed: []);
+    await tester.pumpWidget(testApp(const MainShell(), places: repo));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.bySemanticsLabel(RegExp('Add new place')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Choose location'));
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 900));
+    await tester.pumpAndSettle();
+    await tester.tap(find.bySemanticsLabel('Fake Trattoria'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Confirm Location'));
+    await tester.pumpAndSettle();
+
+    // Name and category come from the venue; nothing was typed.
+    expect(find.text('Fake Trattoria'), findsOneWidget);
+    expect(find.text('Restaurant'), findsWidgets);
+    await tester.tap(find.text('Save Place Record'));
+    await tester.pumpAndSettle();
+    final List<Place> stored = (await tester.runAsync(
+      () => repo.loadPlaces('demo-uid'),
+    ))!;
+    expect(stored.single.name, 'Fake Trattoria');
+    expect(stored.single.category, PlaceCategory.restaurant);
+    expect(stored.single.latitude, 49.8415);
+  });
+
+  testWidgets('a name the user typed is not overwritten by a venue', (
+    tester,
+  ) async {
+    useIPhone(tester, size: const Size(390, 2400));
+    await tester.pumpWidget(testApp(const MainShell()));
+    await tester.pumpAndSettle();
+    await tester.tap(find.bySemanticsLabel(RegExp('Add new place')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(EditableText).first, 'My own name');
+    await tester.tap(find.text('Choose location'));
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 900));
+    await tester.pumpAndSettle();
+    await tester.tap(find.bySemanticsLabel('Fake Roasters'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Confirm Location'));
+    await tester.pumpAndSettle();
+    expect(find.text('My own name'), findsOneWidget);
+    expect(find.text('Fake Roasters'), findsNothing);
   });
 }

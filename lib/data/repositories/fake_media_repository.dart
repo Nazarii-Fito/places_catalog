@@ -43,13 +43,41 @@ class FakeMediaRepository implements MediaRepository {
     final String path = 'users/$uid/$placeId/fake-$_uploads.jpg';
     uploaded.add(path);
     return PlacePhoto.remote(
-      url: 'https://fake.invalid/place-photos/$path',
+      url: '$_urlPrefix$path',
       storagePath: path,
       fileSizeBytes: local.fileSizeBytes,
       contentType: local.contentType ?? 'image/jpeg',
       uploadedAt: DateTime.utc(2026, 11, 20),
     );
   }
+
+  static const String _urlPrefix = 'https://fake.invalid/place-photos/';
+
+  @override
+  Future<PlacePhoto> uploadAvatar({
+    required String uid,
+    required PlacePhoto local,
+  }) async {
+    if (!configured) {
+      throw const PlacesFailure(PlacesFailureType.storageNotConfigured);
+    }
+    _uploads++;
+    await gate?.future;
+    if (failOnUpload == _uploads) throw failure;
+    final String path = 'users/$uid/avatar/fake-$_uploads.jpg';
+    uploaded.add(path);
+    return PlacePhoto.remote(
+      url: '$_urlPrefix$path',
+      storagePath: path,
+      fileSizeBytes: local.fileSizeBytes,
+      contentType: local.contentType ?? 'image/jpeg',
+      uploadedAt: DateTime.utc(2026, 11, 20),
+    );
+  }
+
+  @override
+  String? storagePathOf(String url) =>
+      url.startsWith(_urlPrefix) ? url.substring(_urlPrefix.length) : null;
 
   @override
   Future<void> deletePhoto(String storagePath) async {

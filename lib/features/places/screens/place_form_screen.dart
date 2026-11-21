@@ -296,6 +296,14 @@ class _PlaceFormScreenState extends State<PlaceFormScreen> {
         _location = result.address;
         _latitude = result.latitude;
         _longitude = result.longitude;
+        // A venue chosen on the map tells us what and where it is: fill the
+        // name only if the user has not typed one, and set the category.
+        final String? venueName = result.name;
+        if (venueName != null && _nameController.text.trim().isEmpty) {
+          _nameController.text = venueName;
+        }
+        final PlaceCategory? venueCategory = result.category;
+        if (venueCategory != null) _category = venueCategory;
       });
       _revalidate();
     }

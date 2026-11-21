@@ -77,6 +77,7 @@ class UserScope extends StatelessWidget {
                 auth: context.read<AuthRepository>(),
                 analytics: context.read<AnalyticsService>(),
                 profiles: context.read<UserProfileRepository>(),
+                media: context.read<MediaRepository>(),
               )..add(const ProfileStarted()),
             ),
           ],

@@ -1,6 +1,7 @@
 import 'dart:ui';
 
-import 'package:flutter/cupertino.dart' show CupertinoActivityIndicator;
+import 'package:flutter/cupertino.dart'
+    show CupertinoActivityIndicator, CupertinoIcons;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -20,7 +21,10 @@ import '../../../core/widgets/osm_tile_layer.dart';
 import '../../../core/widgets/pressable_opacity.dart';
 import '../../../data/models/geocoding_result.dart';
 import '../../../data/repositories/geocoding_repository.dart';
+import '../../../data/repositories/venues_repository.dart';
+import '../../../data/services/location_service.dart';
 import '../bloc/location_picker_cubit.dart';
+import '../widgets/venue_marker.dart';
 import '../../../core/widgets/app_text_link.dart';
 import '../../../core/widgets/primary_button.dart';
 
@@ -44,6 +48,8 @@ class LocationPickerScreen extends StatelessWidget {
     return BlocProvider<LocationPickerCubit>(
       create: (BuildContext context) => LocationPickerCubit(
         geocoding: context.read<GeocodingRepository>(),
+        venues: context.read<VenuesRepository>(),
+        location: context.read<LocationService>(),
         initialCenter: start != null && start.hasPoint
             ? LatLng(start.latitude!, start.longitude!)
             : MapDefaults.center,
@@ -80,9 +86,6 @@ class _LocationPickerViewState extends State<_LocationPickerView> {
     final LocationPickerCubit cubit = context.read<LocationPickerCubit>();
     if (start != null && !start.hasPoint && start.address.isNotEmpty) {
       cubit.centerOnAddress(start.address);
-    } else if (start == null || start.address.isEmpty) {
-      // A fresh picker: name the point it opens on, like a drag would.
-      cubit.mapMoved(cubit.state.center);
     }
   }
 
@@ -93,6 +96,33 @@ class _LocationPickerViewState extends State<_LocationPickerView> {
     super.dispose();
   }
 
+  /// The part of the map the user sees now, for the venue markers.
+  MapViewport _viewport(MapCamera camera) {
+    final LatLngBounds b = camera.visibleBounds;
+    return MapViewport(
+      bounds: GeoBounds(
+        south: b.south,
+        west: b.west,
+        north: b.north,
+        east: b.east,
+      ),
+      zoom: camera.zoom,
+    );
+  }
+
+  /// First frame of the map: name the starting point (a fresh picker only —
+  /// an edited place keeps its saved address) and show venues around it.
+  void _onMapReady() {
+    final LocationPickerCubit cubit = context.read<LocationPickerCubit>();
+    final MapViewport view = _viewport(_map.camera);
+    final LocationPickerArgs? start = widget.initial;
+    if (start == null || start.address.isEmpty) {
+      cubit.mapMoved(cubit.state.center, viewport: view);
+    } else {
+      cubit.showVenuesIn(view);
+    }
+  }
+
   void _onMapEvent(MapEvent event) {
     // Moves made by the cubit itself (after a search) are not the user's.
     if (event.source == MapEventSource.mapController) return;
@@ -101,7 +131,7 @@ class _LocationPickerViewState extends State<_LocationPickerView> {
       setState(() => _dragging = true);
     } else if (event is MapEventMoveEnd) {
       setState(() => _dragging = false);
-      cubit.mapMoved(event.camera.center);
+      cubit.mapMoved(event.camera.center, viewport: _viewport(event.camera));
     } else if (event is MapEventMove) {
       cubit.mapMoving(event.camera.center);
     }
@@ -141,8 +171,34 @@ class _LocationPickerViewState extends State<_LocationPickerView> {
                 initialZoom: MapDefaults.zoom,
                 backgroundColor: OsmTileLayer.background,
                 onMapEvent: _onMapEvent,
+                onMapReady: _onMapReady,
               ),
-              children: const [OsmTileLayer()],
+              children: [
+                const OsmTileLayer(),
+                // Venues around the view, as the app's own markers (OSM tiles
+                // carry no cafe icons). Tapping one chooses it.
+                BlocBuilder<LocationPickerCubit, LocationPickerState>(
+                  buildWhen: (a, b) =>
+                      a.venues != b.venues || a.selected != b.selected,
+                  builder: (BuildContext context, LocationPickerState state) =>
+                      MarkerLayer(
+                        markers: [
+                          for (final GeocodingResult v in state.venues)
+                            Marker(
+                              point: LatLng(v.latitude, v.longitude),
+                              width: VenueMarker.size,
+                              height: VenueMarker.size,
+                              child: VenueMarker(
+                                category: v.category!,
+                                label: v.title,
+                                selected: state.selected == v,
+                                onTap: () => cubit.selectResult(v),
+                              ),
+                            ),
+                        ],
+                      ),
+                ),
+              ],
             ),
             const IgnorePointer(
               child: DecoratedBox(
@@ -196,9 +252,70 @@ class _LocationPickerViewState extends State<_LocationPickerView> {
                 ),
               ),
             ),
+            // Under the search panel, out of the column's height so it never
+            // adds to it (small screens, open keyboard). Hidden while a list of
+            // results is shown, which would sit under it.
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 84, right: AppSpacing.l),
+                child: Align(
+                  alignment: Alignment.topRight,
+                  child: BlocBuilder<LocationPickerCubit, LocationPickerState>(
+                    buildWhen: (a, b) => a.results.isEmpty != b.results.isEmpty,
+                    builder: (BuildContext context, LocationPickerState s) =>
+                        s.results.isEmpty
+                        ? const _MyLocationButton()
+                        : const SizedBox.shrink(),
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Round button that moves the map to where the phone is.
+class _MyLocationButton extends StatelessWidget {
+  const _MyLocationButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<LocationPickerCubit, LocationPickerState>(
+      buildWhen: (a, b) =>
+          (a.status == LocationPickerStatus.locating) !=
+          (b.status == LocationPickerStatus.locating),
+      builder: (BuildContext context, LocationPickerState state) {
+        final bool busy = state.status == LocationPickerStatus.locating;
+        return Semantics(
+          button: true,
+          label: AppStrings.myLocationLabel,
+          child: PressableOpacity(
+            onTap: busy
+                ? null
+                : () => context.read<LocationPickerCubit>().useMyLocation(),
+            child: Container(
+              width: AppSpacing.minTapTarget,
+              height: AppSpacing.minTapTarget,
+              alignment: Alignment.center,
+              decoration: const BoxDecoration(
+                color: AppColors.glass95,
+                shape: BoxShape.circle,
+                boxShadow: AppShadows.floating,
+              ),
+              child: busy
+                  ? const CupertinoActivityIndicator()
+                  : const Icon(
+                      CupertinoIcons.location_fill,
+                      size: 20,
+                      color: AppColors.primary,
+                    ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -253,22 +370,35 @@ class _SearchResults extends StatelessWidget {
                       ),
                       child: Align(
                         alignment: Alignment.centerLeft,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        child: Row(
+                          spacing: AppSpacing.sm,
                           children: [
-                            Text(
-                              r.title,
-                              style: AppTextStyles.subheadline,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            Text(
-                              r.displayName,
-                              style: AppTextStyles.footnote.copyWith(
-                                color: AppColors.textSecondary,
+                            if (r.category != null)
+                              Icon(
+                                venueIcon(r.category!),
+                                size: 18,
+                                color: AppColors.primary,
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    r.title,
+                                    style: AppTextStyles.subheadline,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  Text(
+                                    r.displayName,
+                                    style: AppTextStyles.footnote.copyWith(
+                                      color: AppColors.textSecondary,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
                             ),
                           ],
                         ),
@@ -327,7 +457,11 @@ class _SearchBar extends StatelessWidget {
               child: Row(
                 spacing: AppSpacing.sm,
                 children: [
-                  const AppSvgIcon(AppAssets.iconSearch),
+                  GestureDetector(
+                    onTap: onSubmitted,
+                    behavior: HitTestBehavior.opaque,
+                    child: const AppSvgIcon(AppAssets.iconSearch),
+                  ),
                   Expanded(
                     child: TextField(
                       controller: controller,

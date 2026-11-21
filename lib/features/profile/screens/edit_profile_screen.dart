@@ -18,7 +18,12 @@ import '../../../core/widgets/primary_button.dart';
 import '../../../core/widgets/section_label.dart';
 import '../../../core/widgets/user_avatar.dart';
 import '../../../data/models/app_user.dart';
+import '../../../core/widgets/secondary_button.dart';
+import '../../../data/models/place_photo.dart';
+import '../../../data/services/photo_picker_service.dart';
 import '../bloc/profile_bloc.dart';
+import '../../places/screens/add_place_pickers.dart'
+    show PhotoSource, showPhotoSourceSheet;
 import '../widgets/avatar_picker.dart';
 
 /// Edit profile: display name and photo, saved with
@@ -47,6 +52,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       ? _user.photoUrl
       : null;
   bool _useCustomLink = false;
+
+  /// A picture chosen on this device (a local file); uploaded on Save.
+  PlacePhoto? _picked;
   AutovalidateMode _autovalidate = AutovalidateMode.disabled;
 
   @override
@@ -80,14 +88,48 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     context.read<ProfileBloc>().add(
       ProfileUpdated(
         displayName: _nameController.text.trim(),
-        photoUrl: photo == _user.photoUrl ? null : photo,
-        photoSource: _useCustomLink
+        photoUrl: _picked != null || photo == _user.photoUrl ? null : photo,
+        newAvatar: _picked,
+        photoSource: _picked != null
+            ? 'upload'
+            : _useCustomLink
             ? 'custom'
             : _preset != null
             ? 'preset'
             : 'unchanged',
       ),
     );
+  }
+
+  /// "Upload from Device": camera or library, then a local preview. The
+  /// file is uploaded only when the user saves.
+  Future<void> _pickFromDevice() async {
+    final PhotoSource? source = await showPhotoSourceSheet(context);
+    if (source == null || !mounted) return;
+    final PhotoPickerService picker = context.read<PhotoPickerService>();
+    try {
+      final PlacePhoto? photo = switch (source) {
+        PhotoSource.camera => await picker.takePhoto(),
+        PhotoSource.library => (await picker.pickFromLibrary(
+          limit: 1,
+        )).firstOrNull,
+      };
+      if (photo == null || !mounted) return; // cancelled
+      setState(() {
+        _picked = photo;
+        _preset = null;
+        _useCustomLink = false;
+      });
+    } on PhotoPickFailure catch (failure) {
+      if (!mounted) return;
+      await AppConfirmDialog.show(
+        context,
+        title: AppStrings.photoErrorTitle,
+        message: failure.message,
+        confirmLabel: AppStrings.ok,
+        cancelLabel: null,
+      );
+    }
   }
 
   /// `saving → idle` means the save succeeded. The dialog is shown after
@@ -165,6 +207,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           ? CustomPhotoPreview(url: previewUrl)
                           : UserAvatar(
                               imageUrl: previewUrl,
+                              localPath: _picked?.location,
                               initials: _user.initials,
                             ),
                     ),
@@ -173,11 +216,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     const SizedBox(height: AppSpacing.m),
                     AvatarPicker(
                       urls: AppAssets.presetAvatarUrls,
-                      selected: _useCustomLink ? null : _preset,
+                      selected: _useCustomLink || _picked != null
+                          ? null
+                          : _preset,
                       onSelected: (String url) => setState(() {
                         _preset = url;
                         _useCustomLink = false;
+                        _picked = null;
                       }),
+                    ),
+                    const SizedBox(height: AppSpacing.m),
+                    SecondaryButton(
+                      label: AppStrings.uploadFromDevice,
+                      onPressed: saving ? null : _pickFromDevice,
                     ),
                     const SizedBox(height: AppSpacing.m),
                     Row(
@@ -193,8 +244,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           activeTrackColor: AppColors.primary,
                           onChanged: saving
                               ? null
-                              : (bool on) =>
-                                    setState(() => _useCustomLink = on),
+                              : (bool on) => setState(() {
+                                  _useCustomLink = on;
+                                  if (on) _picked = null;
+                                }),
                         ),
                       ],
                     ),

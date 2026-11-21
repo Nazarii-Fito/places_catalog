@@ -251,6 +251,9 @@ abstract final class AppStrings {
       'Update your name and photo in PlacesCatalog.';
   static const String choosePhoto = 'Choose a Photo';
   static const String useCustomLink = 'Use Custom Link';
+  static const String uploadFromDevice = 'Upload from Device';
+  static const String avatarFromDeviceHint =
+      'Take a photo or pick one from your library.';
   static const String photoLinkLabel = 'Image Link';
   static const String photoLinkHint = 'https://example.com/me.png';
   static const String imageLoadFailed = "Couldn't load this image.";
@@ -353,6 +356,15 @@ abstract final class AppStrings {
   static const String moveMapHint = 'Move the map to choose a place';
   static const String locationNotSet = 'Location is not set';
   static const String couldNotOpenMaps = 'Could not open the Maps app.';
+  static const String locationDenied =
+      'Location access was not allowed. You can still search or move the map.';
+  static const String locationDeniedForever =
+      'Location access is off. Allow it in Settings to use your location.';
+  static const String locationServicesOff =
+      'Location services are turned off on this device.';
+  static const String locationUnavailable =
+      'Could not find your location. Try again outdoors.';
+  static const String myLocationLabel = 'My location';
   static const String errorUnknown = 'Something went wrong. Please try again.';
 
   // Validation (Form validators)

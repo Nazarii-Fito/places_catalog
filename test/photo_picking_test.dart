@@ -6,7 +6,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:places_catalog/data/mock/mock_places.dart';
 import 'package:places_catalog/data/models/place_photo.dart';
 import 'package:places_catalog/data/services/photo_picker_service.dart';
+import 'package:places_catalog/data/repositories/fake_media_repository.dart';
 import 'package:places_catalog/features/places/screens/place_form_screen.dart';
+import 'package:places_catalog/features/profile/screens/edit_profile_screen.dart';
 
 import 'helpers/test_harness.dart';
 
@@ -191,6 +193,71 @@ void main() {
       await tester.tap(find.bySemanticsLabel('Remove photo').first);
       await tester.pumpAndSettle();
       expect(find.text('4 left'), findsOneWidget);
+    });
+  });
+
+  group('profile picture from the device', () {
+    testWidgets('pick → preview → Save uploads it and shows the new photo', (
+      tester,
+    ) async {
+      useIPhone(tester, size: const Size(390, 2400));
+      final FakeMediaRepository media = FakeMediaRepository();
+      final FakePhotoPickerService picker = FakePhotoPickerService(
+        library: [picked('me')],
+      );
+      await tester.pumpWidget(
+        testApp(const EditProfileScreen(), media: media, picker: picker),
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+
+      await tester.tap(find.text('Upload from Device'));
+      await tester.pumpAndSettle();
+      expect(find.text('Choose from Library'), findsOneWidget);
+      await tester.tap(find.text('Choose from Library'));
+      await tester.pumpAndSettle();
+      expect(picker.lastLimit, 1);
+
+      await tester.tap(find.text('Save Changes'));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(media.uploaded.single, startsWith('users/demo-uid/avatar/'));
+      expect(find.text('Profile Updated'), findsOneWidget);
+    });
+
+    testWidgets('a denied photo permission is explained', (tester) async {
+      useIPhone(tester, size: const Size(390, 2400));
+      final FakePhotoPickerService picker = FakePhotoPickerService(
+        failure: const PhotoPickFailure(PhotoPickFailureType.photosDenied),
+      );
+      await tester.pumpWidget(
+        testApp(const EditProfileScreen(), picker: picker),
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(find.text('Upload from Device'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Choose from Library'));
+      await tester.pumpAndSettle();
+      expect(find.text('Photo Not Added'), findsOneWidget);
+    });
+
+    testWidgets('without storage keys the save says so', (tester) async {
+      useIPhone(tester, size: const Size(390, 2400));
+      await tester.pumpWidget(
+        testApp(
+          const EditProfileScreen(),
+          media: FakeMediaRepository(configured: false),
+          picker: FakePhotoPickerService(library: [picked('me')]),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(find.text('Upload from Device'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Choose from Library'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save Changes'));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('Cloud storage is not configured.'), findsOneWidget);
     });
   });
 }
