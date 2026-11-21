@@ -53,3 +53,7 @@ docs/input/
 # Local report materials (not part of the app)
 report_data/
 report_data.zip
+
+# Local Supabase keys (copy env/supabase.example.json to env/supabase.json)
+env/*.json
+!env/supabase.example.json

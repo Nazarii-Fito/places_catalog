@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../app/routes/app_routes.dart';
 import '../../../core/constants/app_assets.dart';
@@ -18,7 +19,9 @@ import '../../../core/widgets/primary_button.dart';
 import '../../../core/widgets/tag_list.dart';
 import '../../../app/dev_launch_options.dart';
 import '../../../core/validation/validators.dart';
+import '../../../core/widgets/app_confirm_dialog.dart';
 import '../../../data/models/place.dart';
+import '../../../data/services/photo_picker_service.dart';
 import '../../../data/models/place_category.dart';
 import '../../../data/models/place_photo.dart';
 import '../../../data/models/review.dart';
@@ -49,7 +52,7 @@ class PlaceFormScreen extends StatefulWidget {
 }
 
 class _PlaceFormScreenState extends State<PlaceFormScreen> {
-  static const int _maxPhotos = 5;
+  static const int _maxPhotos = PhotoRules.maxPhotosPerPlace;
   static const List<String> _demoPhotos = [
     AppAssets.photoCoffee,
     AppAssets.photoPasta,
@@ -123,12 +126,35 @@ class _PlaceFormScreenState extends State<PlaceFormScreen> {
   double get _averageRating =>
       _ratings.values.reduce((int a, int b) => a + b) / _ratings.length;
 
-  void _addPhoto() => setState(() {
-    _photos = [
-      ..._photos,
-      PlacePhoto.asset(_demoPhotos[_photos.length % _demoPhotos.length]),
-    ];
-  });
+  /// Opens the source sheet, then adds what the user picked. Cancelling
+  /// does nothing; a denied permission or a bad file shows a plain message.
+  Future<void> _addPhoto() async {
+    final int free = _maxPhotos - _photos.length;
+    if (free < 1) return;
+    final PhotoSource? source = await showPhotoSourceSheet(context);
+    if (source == null || !mounted) return;
+    final PhotoPickerService picker = context.read<PhotoPickerService>();
+    try {
+      final List<PlacePhoto> picked = switch (source) {
+        PhotoSource.library => await picker.pickFromLibrary(limit: free),
+        PhotoSource.camera => [?await picker.takePhoto()],
+      };
+      if (!mounted || picked.isEmpty) return;
+      // The preview is the local file itself: shown at once, no network.
+      setState(
+        () => _photos = [..._photos, ...picked].take(_maxPhotos).toList(),
+      );
+    } on PhotoPickFailure catch (failure) {
+      if (!mounted) return;
+      await AppConfirmDialog.show(
+        context,
+        title: AppStrings.photoErrorTitle,
+        message: failure.message,
+        confirmLabel: AppStrings.ok,
+        cancelLabel: null,
+      );
+    }
+  }
 
   void _removePhoto(int index) => setState(() {
     _photos = [..._photos]..removeAt(index);

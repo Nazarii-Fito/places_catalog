@@ -1,0 +1,26 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "PlacesCatalog (Firestore + Supabase)",
+      "request": "launch",
+      "type": "dart",
+      "toolArgs": ["--dart-define-from-file=env/supabase.json"]
+    },
+    {
+      "name": "PlacesCatalog (local JSON catalog)",
+      "request": "launch",
+      "type": "dart",
+      "toolArgs": [
+        "--dart-define=PLACES_BACKEND=local",
+        "--dart-define-from-file=env/supabase.json"
+      ]
+    },
+    {
+      "name": "PlacesCatalog (screenshot mode, no network)",
+      "request": "launch",
+      "type": "dart",
+      "toolArgs": ["--dart-define=FAKE_AUTH=signed_in"]
+    }
+  ]
+}

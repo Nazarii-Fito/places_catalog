@@ -8,6 +8,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show SupabaseClient;
 
 import 'app/app.dart';
 import 'app/dev_launch_options.dart';
@@ -18,7 +19,10 @@ import 'data/repositories/firebase_auth_repository.dart';
 import 'data/firestore/firestore_places_document_store.dart';
 import 'data/repositories/firestore_places_repository.dart';
 import 'data/repositories/firestore_user_profile_repository.dart';
+import 'data/repositories/fake_media_repository.dart';
 import 'data/repositories/in_memory_places_repository.dart';
+import 'data/repositories/media_repository.dart';
+import 'data/repositories/supabase_media_repository.dart';
 import 'data/repositories/user_profile_repository.dart';
 import 'data/repositories/in_memory_settings_repository.dart';
 import 'data/repositories/local_places_repository.dart';
@@ -27,6 +31,8 @@ import 'data/repositories/settings_repository.dart';
 import 'data/repositories/shared_prefs_settings_repository.dart';
 import 'data/services/analytics_service.dart';
 import 'data/services/crash_reporter.dart';
+import 'data/services/photo_picker_service.dart';
+import 'data/services/supabase_config.dart';
 import 'firebase_options.dart';
 
 Future<void> main() async {
@@ -78,6 +84,15 @@ Future<void> main() async {
           store: FirestorePlacesDocumentStore(FirebaseFirestore.instance),
           crashReporter: crashReporter,
         );
+  final MediaRepository media = fake
+      ? FakeMediaRepository()
+      : SupabaseConfig.isConfigured
+      ? SupabaseMediaRepository(
+          client: SupabaseClient(SupabaseConfig.url, SupabaseConfig.anonKey),
+          crashReporter: crashReporter,
+          bucket: SupabaseConfig.bucket,
+        )
+      : const NotConfiguredMediaRepository();
   final UserProfileRepository profiles = fake || DevLaunchOptions.useLocalPlaces
       ? const NoopUserProfileRepository()
       : FirestoreUserProfileRepository(
@@ -97,6 +112,10 @@ Future<void> main() async {
         RepositoryProvider<PlacesRepository>.value(value: places),
         RepositoryProvider<SettingsRepository>.value(value: settings),
         RepositoryProvider<UserProfileRepository>.value(value: profiles),
+        RepositoryProvider<MediaRepository>.value(value: media),
+        RepositoryProvider<PhotoPickerService>.value(
+          value: ImagePickerPhotoService(),
+        ),
         RepositoryProvider<AnalyticsService>.value(
           value: FirebaseAnalyticsService(FirebaseAnalytics.instance),
         ),

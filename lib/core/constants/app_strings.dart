@@ -158,6 +158,20 @@ abstract final class AppStrings {
   static const String addPhotosHint = 'Upload up to 5 photos from library';
   static const String photosLeftSuffix = ' left';
   static const String removePhoto = 'Remove photo';
+  static const String photoSourceTitle = 'Add Photo';
+  static const String takePhoto = 'Take Photo';
+  static const String chooseFromLibrary = 'Choose from Library';
+  static const String photoErrorTitle = 'Photo Not Added';
+  static const String photoErrorPermission =
+      'Access to photos is turned off. Allow it in Settings to add photos.';
+  static const String photoErrorCameraPermission =
+      'Access to the camera is turned off. Allow it in Settings to take photos.';
+  static const String photoErrorNoCamera =
+      'The camera is not available on this device.';
+  static const String photoErrorTooLarge = 'The photo is larger than 5 MB.';
+  static const String photoErrorUnsupported =
+      'This file type is not supported. Use JPEG, PNG or WebP.';
+  static const String photoErrorRead = 'The photo could not be read.';
   static const String venueInfo = 'Venue Info';
   static const String placeName = 'Place Name';
   static const String placeNameHint = 'Lumina Osteria';

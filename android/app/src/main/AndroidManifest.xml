@@ -1,4 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Firestore, cloud storage, map tiles and address search need the network
+         in release builds too (Flutter adds it only to debug/profile). -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="places_catalog"
         android:name="${applicationName}"

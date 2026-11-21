@@ -64,3 +64,31 @@ Future<DateTime?> showVisitDatePicker(BuildContext context, DateTime initial) {
     ),
   );
 }
+
+/// Where a new photo comes from.
+enum PhotoSource { camera, library }
+
+/// iOS action sheet "Take Photo / Choose from Library / Cancel"; resolves to
+/// the choice or `null` when cancelled.
+Future<PhotoSource?> showPhotoSourceSheet(BuildContext context) {
+  return showCupertinoModalPopup<PhotoSource>(
+    context: context,
+    builder: (BuildContext context) => CupertinoActionSheet(
+      title: const Text(AppStrings.photoSourceTitle),
+      actions: [
+        CupertinoActionSheetAction(
+          onPressed: () => Navigator.of(context).pop(PhotoSource.camera),
+          child: const Text(AppStrings.takePhoto),
+        ),
+        CupertinoActionSheetAction(
+          onPressed: () => Navigator.of(context).pop(PhotoSource.library),
+          child: const Text(AppStrings.chooseFromLibrary),
+        ),
+      ],
+      cancelButton: CupertinoActionSheetAction(
+        onPressed: () => Navigator.of(context).pop(),
+        child: const Text(AppStrings.cancel),
+      ),
+    ),
+  );
+}

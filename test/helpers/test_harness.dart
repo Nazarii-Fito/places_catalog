@@ -7,7 +7,10 @@ import 'package:places_catalog/features/session/bloc/auth_bloc.dart';
 import 'package:places_catalog/app/routes/app_routes.dart';
 import 'package:places_catalog/core/theme/app_theme.dart';
 import 'package:places_catalog/data/repositories/auth_repository.dart';
+import 'package:places_catalog/data/repositories/fake_media_repository.dart';
 import 'package:places_catalog/data/repositories/in_memory_places_repository.dart';
+import 'package:places_catalog/data/repositories/media_repository.dart';
+import 'package:places_catalog/data/services/photo_picker_service.dart';
 import 'package:places_catalog/data/repositories/in_memory_settings_repository.dart';
 import 'package:places_catalog/data/repositories/places_repository.dart';
 import 'package:places_catalog/data/repositories/settings_repository.dart';
@@ -55,6 +58,8 @@ Widget withScope(
   AuthRepository? auth,
   PlacesRepository? places,
   SettingsRepository? settings,
+  MediaRepository? media,
+  PhotoPickerService? picker,
 }) {
   return MultiRepositoryProvider(
     providers: [
@@ -66,6 +71,12 @@ Widget withScope(
       ),
       RepositoryProvider<SettingsRepository>.value(
         value: settings ?? InMemorySettingsRepository(),
+      ),
+      RepositoryProvider<MediaRepository>.value(
+        value: media ?? FakeMediaRepository(),
+      ),
+      RepositoryProvider<PhotoPickerService>.value(
+        value: picker ?? FakePhotoPickerService(),
       ),
       RepositoryProvider<UserProfileRepository>.value(
         value: const NoopUserProfileRepository(),
@@ -91,6 +102,8 @@ Widget testApp(
   AuthRepository? auth,
   PlacesRepository? places,
   SettingsRepository? settings,
+  MediaRepository? media,
+  PhotoPickerService? picker,
 }) {
   return withScope(
     MaterialApp(
@@ -103,6 +116,8 @@ Widget testApp(
     auth: auth,
     places: places,
     settings: settings,
+    media: media,
+    picker: picker,
   );
 }
 
