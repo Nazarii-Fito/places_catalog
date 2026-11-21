@@ -38,6 +38,8 @@ cp env/supabase.example.json env/supabase.json
 
 ## 4. Запуск
 
+> **Ключі Supabase підхоплюються автоматично.** Якщо є файл `env/supabase.json`, він вбудовується в локальну збірку (каталог `env/` оголошено в `pubspec.yaml`), тож хмарні фото працюють при **будь-якому** локальному запуску: з IDE, з Xcode, через `flutter run` і з іконки на симуляторі/телефоні. Прапорець `--dart-define-from-file` більше не обов'язковий (але має пріоритет). Після створення чи зміни `env/supabase.json` зроби повну перезбірку (не hot reload). У debug-консолі при старті видно рядок `Cloud storage: configured` або `NOT configured`.
+
 - **VS Code:** Run and Debug → «PlacesCatalog (Firestore + Supabase)» (бере `env/supabase.json`).
 - **Термінал:**
   ```sh

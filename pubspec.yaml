@@ -47,6 +47,9 @@ flutter:
   assets:
     - assets/images/
     - assets/icons/
+    # Local Supabase keys (env/supabase.json is git-ignored; the example file
+    # is always present, so this directory entry is always valid).
+    - env/
 
   fonts:
     - family: Inter

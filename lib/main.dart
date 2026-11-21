@@ -91,11 +91,19 @@ Future<void> main() async {
           store: FirestorePlacesDocumentStore(FirebaseFirestore.instance),
           crashReporter: crashReporter,
         );
+  final SupabaseConfig storage = await SupabaseConfig.load();
+  if (kDebugMode && !fake) {
+    debugPrint(
+      storage.isConfigured
+          ? 'Cloud storage: configured'
+          : 'Cloud storage: NOT configured (no keys in this build)',
+    );
+  }
   final MediaRepository media = fake
       ? FakeMediaRepository()
-      : SupabaseConfig.isConfigured
+      : storage.isConfigured
       ? SupabaseMediaRepository(
-          client: SupabaseClient(SupabaseConfig.url, SupabaseConfig.anonKey),
+          client: SupabaseClient(storage.url, storage.anonKey),
           crashReporter: crashReporter,
           bucket: SupabaseConfig.bucket,
         )

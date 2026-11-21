@@ -11,7 +11,7 @@ Supabase використовується **лише як файлове схо�
    - **Project URL** (`https://xxxx.supabase.co`);
    - **публічний ключ**: «Publishable key» (`sb_publishable_…`) або, на старих проєктах, «anon public».
 5. Покласти їх у файл `env/supabase.json` (за прикладом `env/supabase.example.json`). Файл у `.gitignore`, у репозиторій не потрапляє.
-6. Запускати застосунок із `--dart-define-from-file=env/supabase.json` (у VS Code це вже налаштовано в `.vscode/launch.json`, конфігурація «PlacesCatalog (Firestore + Supabase)»).
+6. Запустити застосунок: ключі з `env/supabase.json` вбудовуються в локальну збірку автоматично (можна й явно: `--dart-define-from-file=env/supabase.json`, у VS Code — конфігурація «PlacesCatalog (Firestore + Supabase)»). Після зміни файла потрібна повна перезбірка, не hot reload.
 
 ## SQL: bucket і політики
 
